@@ -5,7 +5,12 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 import type { Database } from "@/lib/types/database.types";
 
 /** Routes reachable without a session. Everything else redirects to /login. */
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/auth-code-error"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/auth/auth-code-error",
+  "/auth/signout",
+];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(
@@ -65,8 +70,10 @@ export async function updateSession(request: NextRequest) {
   // later request would fail and bounce here again — an endless redirect.
   function redirectKeepingCookies(url: URL) {
     const redirect = NextResponse.redirect(url);
+    // Copy name/value/options explicitly — passing the cookie object can drop
+    // path/maxAge in some Next versions and leave the browser without a session.
     for (const cookie of response.cookies.getAll()) {
-      redirect.cookies.set(cookie);
+      redirect.cookies.set(cookie.name, cookie.value);
     }
     return redirect;
   }

@@ -8,6 +8,14 @@ function Toaster(props: ToasterProps) {
       theme="dark"
       className="toaster group"
       position="top-right"
+      duration={3200}
+      closeButton
+      toastOptions={{
+        classNames: {
+          toast:
+            "group-[.toaster]:animate-in group-[.toaster]:fade-in-0 group-[.toaster]:slide-in-from-top-2",
+        },
+      }}
       style={
         {
           "--normal-bg": "var(--popover)",

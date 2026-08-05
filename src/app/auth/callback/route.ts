@@ -51,11 +51,12 @@ export async function GET(request: NextRequest) {
     },
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sessionData, error } =
+    await supabase.auth.exchangeCodeForSession(code);
 
-  if (error) {
+  if (error || !sessionData.session) {
     return NextResponse.redirect(
-      `${base}/auth/auth-code-error?reason=${encodeURIComponent(error.message)}`,
+      `${base}/auth/auth-code-error?reason=${encodeURIComponent(error?.message ?? "No session")}`,
     );
   }
 

@@ -40,11 +40,19 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   if (!user) return null;
 
-  const { data } = await supabase
+  let { data } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Auth can exist without a profiles row (failed provision, wiped row). Heal
+  // before treating the visitor as signed out, or they bounce login → dashboard
+  // → login forever.
+  if (!data) {
+    const { data: healed } = await supabase.rpc("vanta_ensure_profile");
+    data = healed ?? null;
+  }
 
   if (!data) return null;
 

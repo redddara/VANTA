@@ -20,15 +20,15 @@ export function SiteHeader({
 
   return (
     <header className="bg-background/85 sticky top-0 z-40 border-b backdrop-blur-md lg:hidden">
-      <div className="flex h-14 items-center gap-2 px-4">
+      <div className="flex h-20 items-center gap-2 px-4">
         <MobileNav items={items} memberName={name} />
 
         <Link
           href="/dashboard"
-          className="flex items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="inline-flex h-full items-center gap-3 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <VantaCrest size="sm" priority />
-          <VantaWordmark className="text-base" />
+          <VantaCrest size="md" priority />
+          <VantaWordmark className="text-xl" />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">

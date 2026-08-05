@@ -3,16 +3,18 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: "size-8",
-  md: "size-11",
+  /** Compact marks (mobile sheet, dense UI). */
+  sm: "size-10",
+  /** Default nav / sidebar crest. */
+  md: "size-16",
   lg: "size-20",
   /** Login hero — animated crest. */
   xl: "size-52 sm:size-64",
 } as const;
 
 const SIZE_PX: Record<keyof typeof SIZES, number> = {
-  sm: 32,
-  md: 44,
+  sm: 40,
+  md: 64,
   lg: 80,
   xl: 256,
 };
@@ -40,15 +42,27 @@ export function VantaCrest({
         className,
       )}
     >
-      <Image
-        src={animated ? "/vanta-crest.gif" : "/vanta-crest.png"}
-        alt=""
-        fill
-        sizes={`${px}px`}
-        priority={priority}
-        unoptimized={animated}
-        className="object-contain"
-      />
+      {animated ? (
+        // next/image can freeze multi-frame GIFs; use a plain img for playback.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/vanta-crest.gif"
+          alt=""
+          width={px}
+          height={px}
+          decoding="async"
+          className="size-full object-contain"
+        />
+      ) : (
+        <Image
+          src="/vanta-crest.png"
+          alt=""
+          fill
+          sizes={`${px}px`}
+          priority={priority}
+          className="object-contain"
+        />
+      )}
     </span>
   );
 }
@@ -57,7 +71,8 @@ export function VantaWordmark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "font-display text-xl leading-none font-semibold tracking-[0.32em] uppercase",
+        // Oswald sits a hair high next to icons; nudge for optical middle.
+        "font-display inline-flex items-center text-xl leading-none font-semibold tracking-[0.32em] uppercase translate-y-px",
         className,
       )}
     >

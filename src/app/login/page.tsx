@@ -20,30 +20,34 @@ export default async function LoginPage({
       <div className="vanta-glow pointer-events-none absolute inset-0 -z-10" />
 
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center text-center">
+        <div className="vanta-fade-up flex flex-col items-center text-center">
           <VantaCrest size="xl" animated priority />
-          <VantaWordmark className="mt-8 text-3xl sm:text-4xl" />
-          <p className="text-muted-foreground mt-3 text-sm">Member Portal</p>
+          <VantaWordmark className="vanta-fade-up vanta-fade-up-delay-1 mt-8 text-3xl sm:text-4xl" />
+          <p className="text-muted-foreground vanta-fade-up vanta-fade-up-delay-2 mt-3 text-sm">
+            Member Portal
+          </p>
         </div>
 
-        <div className="vanta-hairline my-8 h-px w-full" />
+        <div className="vanta-hairline vanta-fade-up vanta-fade-up-delay-2 my-8 h-px w-full" />
 
         {stale ? (
-          <p className="border-destructive/40 bg-destructive/10 text-muted-foreground mb-6 rounded-md border px-4 py-3 text-center text-sm leading-relaxed text-balance">
+          <p className="border-destructive/40 bg-destructive/10 text-muted-foreground vanta-fade-up vanta-fade-up-delay-3 mb-6 rounded-md border px-4 py-3 text-center text-sm leading-relaxed text-balance">
             You are signed in to Discord but the portal has no profile for that
             account. Sign in again, and if this keeps happening ask an admin to
             check your membership.
           </p>
         ) : null}
 
-        <p className="text-muted-foreground mb-6 text-center text-sm leading-relaxed text-balance">
+        <p className="text-muted-foreground vanta-fade-up vanta-fade-up-delay-3 mb-6 text-center text-sm leading-relaxed text-balance">
           Sign in with the Discord account you use in the crew server. Your
           profile is created automatically on first login.
         </p>
 
-        <DiscordSignInButton next={safeNext} />
+        <div className="vanta-fade-up vanta-fade-up-delay-4">
+          <DiscordSignInButton next={safeNext} />
+        </div>
 
-        <p className="text-muted-foreground/70 mt-8 text-center text-xs leading-relaxed">
+        <p className="text-muted-foreground/70 vanta-fade-up vanta-fade-up-delay-4 mt-8 text-center text-xs leading-relaxed">
           Access is limited to Vanta members. If you sign in and the portal says
           your account is inactive, ask an admin to reactivate you.
         </p>

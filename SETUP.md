@@ -163,8 +163,12 @@ Go to **Authentication → URL Configuration** and set:
 
 ```
 http://localhost:3000/**
+http://localhost:3001/**
 https://vanta-two-xi.vercel.app/**
 ```
+
+Include **both** localhost ports — if `3000` is already taken, Next.js moves to
+`3001`, and Discord sign-in fails unless that origin is listed.
 
 The wildcard covers `/auth/callback` plus the `?next=` parameter the portal uses
 to send members back to the page they asked for.

@@ -69,9 +69,11 @@ export function MobileNav({
                       onClick={() => setOpen(false)}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                        "rounded-md px-3 py-2.5 text-sm font-medium",
+                        "border-l-2 border-transparent",
+                        "transition-[color,background-color,border-color] duration-200 ease-out",
                         active
-                          ? "bg-primary/12 text-primary border-primary border-l-2"
+                          ? "bg-primary/12 text-primary border-primary"
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                       )}
                     >

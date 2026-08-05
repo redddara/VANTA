@@ -32,13 +32,13 @@ export function SideNav({
 
   return (
     <aside className="border-border/80 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r lg:flex">
-      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4">
+      <div className="flex h-20 shrink-0 items-center border-b px-4">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="inline-flex h-full items-center gap-3 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <VantaCrest size="sm" priority />
-          <VantaWordmark className="text-base" />
+          <VantaCrest size="md" priority />
+          <VantaWordmark className="text-xl" />
         </Link>
       </div>
 
@@ -57,10 +57,12 @@ export function SideNav({
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
+                      "rounded-md px-2.5 py-2 text-sm font-medium",
+                      "border-l-2 border-transparent pl-[calc(0.625rem-2px)]",
+                      "transition-[color,background-color,border-color,transform] duration-200 ease-out",
                       active
-                        ? "bg-primary/12 text-primary border-primary border-l-2 pl-[calc(0.625rem-2px)]"
-                        : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+                        ? "bg-primary/12 text-primary border-primary"
+                        : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground hover:translate-x-0.5",
                     )}
                   >
                     {item.label}

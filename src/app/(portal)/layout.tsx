@@ -21,7 +21,7 @@ export default async function PortalLayout({
           {children}
         </main>
         <footer className="border-t">
-          <div className="text-muted-foreground/60 mx-auto max-w-7xl px-4 py-5 text-xs sm:px-6">
+          <div className="text-muted-foreground/60 mx-auto max-w-7xl px-4 py-5 text-xs transition-opacity duration-300 sm:px-6">
             Vanta Portal · every edit is recorded in the audit log
           </div>
         </footer>
