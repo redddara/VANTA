@@ -153,7 +153,23 @@ Back on the Supabase **Discord** provider page:
 
 Click **Save**.
 
-### 3d. Tell Supabase which redirects to trust
+### 3d. Lock sign-in to your Discord server
+
+The portal rejects anyone who is not in your crew Discord. You need the server’s
+snowflake ID:
+
+1. In Discord, open **User Settings → App Settings → Advanced** and turn on
+   **Developer Mode**.
+2. Right-click your Vanta server icon in the sidebar → **Copy Server ID**.
+3. Put that value in `.env.local` (and later in Vercel) as `DISCORD_GUILD_ID`.
+
+Optional: set `NEXT_PUBLIC_DISCORD_INVITE_URL` to a Discord invite link so the
+“not in the server” error page can offer a Join button.
+
+Discord will ask members to allow the app to see which servers they are in
+(`guilds` scope). That list is checked once at login and is not stored.
+
+### 3e. Tell Supabase which redirects to trust
 
 Go to **Authentication → URL Configuration** and set:
 
@@ -207,10 +223,12 @@ where discord_username = 'your_discord_handle';
    detects Next.js on its own — leave the build settings alone.
 3. Before deploying, expand **Environment Variables** and add:
 
-   | Name                            | Value                        |
-   | ------------------------------- | ---------------------------- |
-   | `NEXT_PUBLIC_SUPABASE_URL`      | your Project URL             |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | your anon public key         |
+   | Name                              | Value                        |
+   | --------------------------------- | ---------------------------- |
+   | `NEXT_PUBLIC_SUPABASE_URL`        | your Project URL             |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | your anon public key         |
+   | `DISCORD_GUILD_ID`                | your Discord server snowflake |
+   | `NEXT_PUBLIC_DISCORD_INVITE_URL`  | optional invite link         |
 
 4. Click **Deploy**.
 

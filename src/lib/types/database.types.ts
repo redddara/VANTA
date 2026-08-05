@@ -785,6 +785,7 @@ export type Database = {
         }[]
       }
       vanta_rank_weight: { Args: { p_rank: string }; Returns: number }
+      vanta_reject_unauthorized_signup: { Args: never; Returns: undefined }
       vanta_remit_week_starts: {
         Args: never
         Returns: {

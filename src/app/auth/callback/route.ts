@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { isDiscordGuildMember } from "@/lib/discord";
+import { discordGuildId, supabaseAnonKey, supabaseUrl } from "@/lib/env";
 import type { Database } from "@/lib/types/database.types";
 
 /**
@@ -9,6 +10,9 @@ import type { Database } from "@/lib/types/database.types";
  * onto the redirect response itself — setting them only via next/headers and then
  * redirecting often drops them on Vercel, which sends the member straight back
  * to /login as if they never signed in.
+ *
+ * After the session exists we confirm the account is in the crew Discord server
+ * before letting them into the portal.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -51,6 +55,32 @@ export async function GET(request: NextRequest) {
     },
   );
 
+  function redirectKeepingCookies(path: string) {
+    const redirect = NextResponse.redirect(`${base}${path}`);
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie.name, cookie.value);
+    }
+    return redirect;
+  }
+
+  async function denyAccess(errorCode: string, wipeSignup: boolean) {
+    if (wipeSignup) {
+      try {
+        await supabase.rpc("vanta_reject_unauthorized_signup");
+      } catch {
+        // Best-effort cleanup; the session is cleared either way.
+      }
+    }
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Account may already be gone after a wipe.
+    }
+    return redirectKeepingCookies(
+      `/auth/auth-code-error?error=${encodeURIComponent(errorCode)}`,
+    );
+  }
+
   const { data: sessionData, error } =
     await supabase.auth.exchangeCodeForSession(code);
 
@@ -58,6 +88,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       `${base}/auth/auth-code-error?reason=${encodeURIComponent(error?.message ?? "No session")}`,
     );
+  }
+
+  let guildId: string;
+  try {
+    guildId = discordGuildId();
+  } catch {
+    return denyAccess("missing_guild_config", false);
+  }
+
+  const providerToken = sessionData.session.provider_token;
+  if (!providerToken) {
+    return denyAccess("missing_provider_token", false);
+  }
+
+  let inGuild = false;
+  try {
+    inGuild = await isDiscordGuildMember(providerToken, guildId);
+  } catch {
+    return denyAccess("guild_check_failed", false);
+  }
+
+  if (!inGuild) {
+    return denyAccess("not_in_guild", true);
   }
 
   // Heal a missing profiles row before the portal layout tries to load it.

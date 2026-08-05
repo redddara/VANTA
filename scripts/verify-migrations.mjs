@@ -1192,6 +1192,36 @@ async function main() {
     assert(read[0].title === "Switch drill v2", "Prospect should see the update");
   });
 
+  console.log("\nguild membership signup reject");
+
+  await check("reject wipe only deletes brand-new unauthorized signups", async () => {
+    const outsiderId = await signIn("outsider");
+    await as(outsiderId, "select public.vanta_reject_unauthorized_signup();");
+    const { rows } = await asSystem(
+      "select id from auth.users where id = $1;",
+      [outsiderId],
+    );
+    assert(rows.length === 0, "brand-new outsider auth user should be wiped");
+  });
+
+  await check("reject wipe leaves established members alone", async () => {
+    await asSystem(
+      "update public.profiles set created_at = now() - interval '1 day' where id = $1;",
+      [operatorId],
+    );
+    await as(operatorId, "select public.vanta_reject_unauthorized_signup();");
+    const { rows } = await asSystem(
+      "select id from auth.users where id = $1;",
+      [operatorId],
+    );
+    assert(rows.length === 1, "established Operator must not be wiped");
+    const { rows: profiles } = await asSystem(
+      "select id from public.profiles where id = $1;",
+      [operatorId],
+    );
+    assert(profiles.length === 1, "established Operator profile must remain");
+  });
+
   console.log(
     `\n${failures.length === 0 ? "PASS" : "FAIL"} \u2014 ${passed} passed, ${failures.length} failed\n`,
   );

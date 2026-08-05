@@ -41,3 +41,18 @@ export function siteUrl(): string {
 
   return "http://localhost:3000";
 }
+
+/**
+ * Discord snowflake for the crew server. Only accounts that belong to this
+ * guild may finish signing in. Enable Developer Mode in Discord → right-click
+ * the server → Copy Server ID.
+ */
+export function discordGuildId(): string {
+  return required("DISCORD_GUILD_ID", process.env.DISCORD_GUILD_ID);
+}
+
+/** Optional invite link shown when someone signs in but is not in the guild. */
+export function discordInviteUrl(): string | undefined {
+  const value = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL?.trim();
+  return value || undefined;
+}

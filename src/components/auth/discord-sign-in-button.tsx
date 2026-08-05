@@ -28,7 +28,12 @@ export function DiscordSignInButton({ next }: { next?: string }) {
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
-      options: { redirectTo: callback.toString() },
+      options: {
+        redirectTo: callback.toString(),
+        // identify + email are already requested by Supabase; guilds lets the
+        // callback confirm the account is in the crew Discord server.
+        scopes: "guilds",
+      },
     });
 
     if (error) {

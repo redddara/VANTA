@@ -39,8 +39,9 @@ export default async function LoginPage({
         ) : null}
 
         <p className="text-muted-foreground vanta-fade-up vanta-fade-up-delay-3 mb-6 text-center text-sm leading-relaxed text-balance">
-          Sign in with the Discord account you use in the crew server. Your
-          profile is created automatically on first login.
+          Sign in with the Discord account that is already in the Vanta server.
+          Only crew members can access the portal — your profile is created on
+          first login.
         </p>
 
         <div className="vanta-fade-up vanta-fade-up-delay-4">
