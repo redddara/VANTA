@@ -17,7 +17,7 @@ export function RankBadge({
     <Badge
       variant={isStaff(rank) ? "outline" : "secondary"}
       className={cn(
-        "tracking-wide uppercase",
+        "max-w-full truncate tracking-wide uppercase",
         isAdmin(rank) && "border-primary/40 bg-primary/15 text-primary",
         isStaff(rank) && !isAdmin(rank) && "border-foreground/25 text-foreground",
         className,

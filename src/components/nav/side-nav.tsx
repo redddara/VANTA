@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { VantaCrest, VantaWordmark } from "@/components/brand/vanta-crest";
-import { RankBadge } from "@/components/nav/rank-badge";
 import { UserMenu } from "@/components/nav/user-menu";
 import { displayName } from "@/lib/display";
 import {
@@ -74,12 +73,8 @@ export function SideNav({
         ))}
       </nav>
 
-      <div className="flex shrink-0 items-center gap-2 border-t p-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{name}</p>
-          <RankBadge rank={profile.crew_rank} className="mt-1" />
-        </div>
-        <UserMenu profile={profile} name={name} />
+      <div className="shrink-0 border-t p-2">
+        <UserMenu profile={profile} name={name} layout="sidebar" />
       </div>
     </aside>
   );
