@@ -341,9 +341,17 @@ async function main() {
     "select id, name, is_weekly_quota, quota_amount from public.remit_types order by name;",
   );
   const launderingType = remitTypes.rows.find((r) => r.is_weekly_quota);
-  const chopmatsType = remitTypes.rows.find((r) => r.name === "Chopmats");
+  const chopmatsType = remitTypes.rows.find((r) => r.name === "Chopmats — Aluminum");
   assert(launderingType, "Laundering Contract seed missing");
-  assert(chopmatsType, "Chopmats seed missing");
+  assert(chopmatsType, "Chopmats — Aluminum seed missing");
+  assert(
+    remitTypes.rows.filter((r) => String(r.name).startsWith("Chopmats")).length === 5,
+    "expected five Chopmats material types",
+  );
+  assert(
+    !remitTypes.rows.some((r) => r.name === "Chopmats"),
+    "generic Chopmats type should have been replaced",
+  );
   assert(Number(launderingType.quota_amount) === 2, "weekly quota should be 2");
 
   await check("everyone can read remit types", async () => {
@@ -512,94 +520,82 @@ async function main() {
     assert(rows.length === 1 && rows[0].member_id === operatorId, "Operator saw other members' compliance");
   });
 
-  console.log("\nrep_tiers and member_rep RLS");
+  console.log("\nmember_rep RLS (per-member reputation)");
 
-  // Placeholder seed migration inserts five tiers when the table is empty.
-  const seeded = await asSystem(
-    "select id, level_order, tier_label from public.rep_tiers order by level_order;",
-  );
-  assert(seeded.rows.length >= 2, "expected the seed migration to create placeholder tiers");
-  const tierLowId = seeded.rows[0].id;
-  const tierHighId = seeded.rows[seeded.rows.length - 1].id;
-  const tierHighLabel = seeded.rows[seeded.rows.length - 1].tier_label;
-  const tierHighOrder = Number(seeded.rows[seeded.rows.length - 1].level_order);
-
-  await check("an admin can create rep tiers", async () => {
-    await as(
-      underbossId,
-      `insert into public.rep_tiers (level_order, tier_label, house_rob_payout, gps_unlocked)
-       values (90, 'Verify Extra', '$1', false);`,
+  await check("the shared ladder table is gone", async () => {
+    const { rows } = await asSystem(
+      "select to_regclass('public.rep_tiers') is null as dropped;",
     );
+    assert(rows[0].dropped === true, "rep_tiers still exists");
   });
 
-  await denied(
-    "a Captain cannot create rep tiers",
-    () =>
-      as(
-        captainId,
-        `insert into public.rep_tiers (level_order, tier_label) values (99, 'Fake');`,
-      ),
-    "row-level security",
-  );
-
-  await check("everyone including a Prospect can read the ladder", async () => {
-    const { rows } = await as(prospectId, "select id from public.rep_tiers order by level_order;");
-    assert(rows.length >= 5, `expected at least the 5 seeded tiers, got ${rows.length}`);
-  });
-
-  await check("a Captain can assign a member's first tier", async () => {
+  await check("a Captain can set a member's reputation profile", async () => {
     await as(
       captainId,
-      "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $3);",
-      [operatorId, tierLowId, captainId],
+      `insert into public.member_rep (
+         member_id, rep_band, tier_label, house_rob_payout, atm_payout, launder_rate, store_capacity,
+         gps_unlocked, rope_unlocked, nos_unlocked, usb_unlocked, updated_by
+       ) values ($1, 'mid', 'Reliable Hand', '$5,000', '$2,500', '$65/MB', '40 MB', true, false, false, false, $2);`,
+      [operatorId, captainId],
     );
   });
 
-  await check("a Captain can promote a member to a higher tier", async () => {
+  await check("a Captain can update that member's reputation fields", async () => {
     await as(
       captainId,
-      "update public.member_rep set current_tier_id = $1, updated_by = $2 where member_id = $3;",
-      [tierHighId, captainId, operatorId],
+      `update public.member_rep
+       set rep_band = 'high', tier_label = 'Top Earner', usb_unlocked = true, updated_by = $1
+       where member_id = $2;`,
+      [captainId, operatorId],
     );
-    const { rows } = await as(operatorId, "select current_tier_id from public.member_rep where member_id = $1;", [
+    const { rows } = await as(
       operatorId,
-    ]);
-    assert(rows[0].current_tier_id === tierHighId, "promotion did not stick");
+      "select rep_band, tier_label, usb_unlocked from public.member_rep where member_id = $1;",
+      [operatorId],
+    );
+    assert(rows[0].rep_band === "high", "rep band update did not stick");
+    assert(rows[0].tier_label === "Top Earner", "update did not stick");
+    assert(rows[0].usb_unlocked === true, "usb unlock missing");
   });
 
   await denied(
-    "an Operator cannot assign tiers",
+    "an Operator cannot set reputation",
     () =>
       as(
         operatorId,
-        "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $1);",
-        [prospectId, tierLowId],
+        `insert into public.member_rep (member_id, rep_band, tier_label, updated_by)
+         values ($1, 'low', 'Fake', $1);`,
+        [prospectId],
       ),
     "row-level security",
   );
 
   await denied(
-    "a Prospect cannot assign themselves a tier",
+    "a Prospect cannot set their own reputation",
     () =>
       as(
         prospectId,
-        "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $1);",
-        [prospectId, tierHighId],
+        `insert into public.member_rep (member_id, rep_band, tier_label, updated_by)
+         values ($1, 'high', 'Self', $1);`,
+        [prospectId],
       ),
     "row-level security",
   );
 
-  await check("new members have no tier until staff assigns one", async () => {
+  await check("new members have no reputation until staff sets one", async () => {
     const { rows } = await asSystem("select 1 from public.member_rep where member_id = $1;", [prospectId]);
-    assert(rows.length === 0, "a Prospect was auto-assigned a tier");
+    assert(rows.length === 0, "a Prospect was auto-assigned reputation");
   });
 
-  await check("anyone can read another member's current tier", async () => {
-    const { rows } = await as(prospectId, "select current_tier_id from public.member_rep where member_id = $1;", [
-      operatorId,
-    ]);
+  await check("anyone can read another member's reputation", async () => {
+    const { rows } = await as(
+      prospectId,
+      "select rep_band, tier_label from public.member_rep where member_id = $1;",
+      [operatorId],
+    );
     assert(rows.length === 1, "a Prospect could not read member_rep");
-    assert(rows[0].current_tier_id === tierHighId, "wrong tier visible");
+    assert(rows[0].rep_band === "high", "wrong rep band visible");
+    assert(rows[0].tier_label === "Top Earner", "wrong reputation visible");
   });
 
   await check("the points ledger was archived, not dropped", async () => {
@@ -612,27 +608,28 @@ async function main() {
 
   console.log("\nmember_summary view");
 
-  await check("roster summary exposes the current tier, not a points total", async () => {
+  await check("roster summary exposes per-member reputation fields", async () => {
     const { rows } = await as(
       operatorId,
-      "select id, tier_label, tier_level_order, gps_unlocked, usb_unlocked, total_approved_remit from public.member_summary where id = $1;",
+      "select id, rep_band, tier_label, gps_unlocked, usb_unlocked, total_approved_remit from public.member_summary where id = $1;",
       [operatorId],
     );
     assert(rows.length === 1, "could not read own summary");
-    assert(rows[0].tier_label === tierHighLabel, `returned ${rows[0].tier_label}`);
-    assert(Number(rows[0].tier_level_order) === tierHighOrder, "level_order wrong");
-    assert(rows[0].usb_unlocked === true, "top-tier usb unlock missing");
+    assert(rows[0].rep_band === "high", `returned band ${rows[0].rep_band}`);
+    assert(rows[0].tier_label === "Top Earner", `returned ${rows[0].tier_label}`);
+    assert(rows[0].usb_unlocked === true, "usb unlock missing from summary");
   });
 
-  await check("a member with no tier shows null tier fields", async () => {
+  await check("a member with no reputation shows null fields", async () => {
     const { rows } = await as(
       operatorId,
-      "select tier_label, current_tier_id from public.member_summary where id = $1;",
+      "select rep_band, tier_label, house_rob_payout from public.member_summary where id = $1;",
       [prospectId],
     );
     assert(rows.length === 1, "an Operator could not read another member's summary row");
-    assert(rows[0].tier_label === null, "unassigned member has a tier label");
-    assert(rows[0].current_tier_id === null, "unassigned member has a tier id");
+    assert(rows[0].rep_band === null, "unassigned member has a rep band");
+    assert(rows[0].tier_label === null, "unassigned member has a reputation label");
+    assert(rows[0].house_rob_payout === null, "unassigned member has payouts");
   });
 
   await check("a Prospect sees only their own summary row", async () => {
@@ -684,28 +681,66 @@ async function main() {
     );
   });
 
-  await check("assigning and moving a member on the ladder is audited", async () => {
+  await check("setting and updating a member's reputation is audited", async () => {
     const { rows } = await asSystem(
-      "select detail from public.audit_log where action = 'rep.tier_change' order by created_at;",
+      "select detail from public.audit_log where action = 'rep.set' order by created_at;",
     );
-    assert(rows.length >= 2, `expected at least 2 tier-change audits, got ${rows.length}`);
+    assert(rows.length >= 2, `expected at least 2 rep.set audits, got ${rows.length}`);
     assert(
-      rows.some((r) => r.detail.tier?.from === null && r.detail.tier?.to === seeded.rows[0].tier_label),
+      rows.some((r) => r.detail.rep?.from === null && r.detail.rep?.to?.tier_label === "Reliable Hand"),
       "the first assignment was not audited",
     );
     assert(
       rows.some(
         (r) =>
-          r.detail.tier?.from === seeded.rows[0].tier_label &&
-          r.detail.tier?.to === tierHighLabel,
+          r.detail.rep?.from?.tier_label === "Reliable Hand" &&
+          r.detail.rep?.to?.tier_label === "Top Earner",
       ),
-      "the promotion was not audited",
+      "the update was not audited",
     );
+  });
+
+  await check("a member can delete their own pending remit", async () => {
+    const { rows } = await as(
+      prospectId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 1, $1) returning id;`,
+      [prospectId, launderingType.id],
+    );
+    const pendingId = rows[0].id;
+    await as(prospectId, "delete from public.remit_logs where id = $1;", [pendingId]);
+    const left = await asSystem("select 1 from public.remit_logs where id = $1;", [pendingId]);
+    assert(left.rows.length === 0, "pending remit was not deleted");
+  });
+
+  await check("a Prospect cannot delete someone else's pending remit", async () => {
+    const { rows } = await as(
+      operatorId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 1, $1) returning id;`,
+      [operatorId, chopmatsType.id],
+    );
+    const otherId = rows[0].id;
+    // RLS DELETE silently skips rows the caller cannot see/delete.
+    await as(prospectId, "delete from public.remit_logs where id = $1;", [otherId]);
+    const left = await asSystem("select 1 from public.remit_logs where id = $1;", [otherId]);
+    assert(left.rows.length === 1, "Prospect deleted another member's pending remit");
+  });
+
+  await check("a member cannot delete an already-approved remit", async () => {
+    // remitId is approved earlier in the suite; member_id is operatorId.
+    await as(operatorId, "delete from public.remit_logs where id = $1;", [remitId]);
+    const left = await asSystem("select status from public.remit_logs where id = $1;", [remitId]);
+    assert(left.rows.length === 1, "approved remit was deleted by its member");
+    assert(left.rows[0].status === "approved", "approved remit status changed");
   });
 
   await check("voiding a remit entry preserves a copy in the audit log", async () => {
     await as(underbossId, "delete from public.remit_logs where id = $1;", [remitId]);
-    const { rows } = await asSystem("select detail from public.audit_log where action = 'remit.delete';");
+    const { rows } = await asSystem(
+      "select detail from public.audit_log where action = 'remit.delete' and target_id = $1;",
+      [remitId],
+    );
     assert(rows.length === 1, "the deletion was not audited");
     assert(Number(rows[0].detail.deleted.amount) === 5000, "the deleted row was not snapshotted");
   });
@@ -730,20 +765,20 @@ async function main() {
     try {
       await as(
         captainId,
-        "update public.member_rep set current_tier_id = $1, updated_by = $2 where member_id = $3;",
-        [tierLowId, captainId, operatorId],
+        "update public.member_rep set tier_label = 'Hacked', updated_by = $1 where member_id = $2;",
+        [captainId, operatorId],
       );
     } catch {
       blocked = true;
     }
     // RLS update with no matching rows returns 0 affected without throwing.
     if (!blocked) {
-      const { rows } = await asSystem("select current_tier_id from public.member_rep where member_id = $1;", [
+      const { rows } = await asSystem("select tier_label from public.member_rep where member_id = $1;", [
         operatorId,
       ]);
-      blocked = rows[0].current_tier_id === tierHighId;
+      blocked = rows[0].tier_label === "Top Earner";
     }
-    assert(blocked, "a deactivated Captain could still move members on the ladder");
+    assert(blocked, "a deactivated Captain could still change reputation");
   });
 
   await denied(

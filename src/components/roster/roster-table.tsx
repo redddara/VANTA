@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search, Users } from "lucide-react";
 
 import { CraftingUnlockBadges } from "@/components/reputation/crafting-unlocks";
+import { RepBandBadge } from "@/components/reputation/rep-band-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
 import { RankBadge } from "@/components/nav/rank-badge";
+import { REP_BANDS } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -40,8 +42,15 @@ function compare(a: MemberSummary, b: MemberSummary, key: SortKey): number {
       });
     case "rank":
       return rankWeight(a.crew_rank) - rankWeight(b.crew_rank);
-    case "tier":
-      return (a.tier_level_order ?? -1) - (b.tier_level_order ?? -1);
+    case "tier": {
+      const order = (band: string | null) =>
+        band ? REP_BANDS.indexOf(band as (typeof REP_BANDS)[number]) : -1;
+      const byBand = order(a.rep_band) - order(b.rep_band);
+      if (byBand !== 0) return byBand;
+      return (a.tier_label ?? "").localeCompare(b.tier_label ?? "", undefined, {
+        sensitivity: "base",
+      });
+    }
     case "remit":
       return Number(a.total_approved_remit) - Number(b.total_approved_remit);
     case "joined":
@@ -111,7 +120,7 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
 
     const filtered = needle
       ? members.filter((m) =>
-          [m.ingame_name, m.discord_username, m.crew_rank, m.tier_label]
+          [m.ingame_name, m.discord_username, m.crew_rank, m.tier_label, m.rep_band]
             .filter(Boolean)
             .some((field) => field!.toLowerCase().includes(needle)),
         )
@@ -168,7 +177,7 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
                   className="hidden sm:table-cell"
                 />
                 <SortableHead
-                  label="Rep tier"
+                  label="Reputation"
                   sortKey="tier"
                   active={sortKey === "tier"}
                   direction={direction}
@@ -212,7 +221,10 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
                   <TableCell>
                     {member.tier_label ? (
                       <div className="space-y-1.5">
-                        <p className="text-sm font-medium">{member.tier_label}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">{member.tier_label}</p>
+                          <RepBandBadge band={member.rep_band} />
+                        </div>
                         <CraftingUnlockBadges
                           tier={member}
                           className="hidden lg:flex"

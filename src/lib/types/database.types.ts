@@ -68,31 +68,51 @@ export type Database = {
       }
       member_rep: {
         Row: {
-          current_tier_id: string
+          atm_payout: string | null
+          gps_unlocked: boolean
+          house_rob_payout: string | null
+          launder_rate: string | null
           member_id: string
+          nos_unlocked: boolean
+          rep_band: string
+          rope_unlocked: boolean
+          store_capacity: string | null
+          tier_label: string
           updated_at: string
           updated_by: string
+          usb_unlocked: boolean
         }
         Insert: {
-          current_tier_id: string
+          atm_payout?: string | null
+          gps_unlocked?: boolean
+          house_rob_payout?: string | null
+          launder_rate?: string | null
           member_id: string
+          nos_unlocked?: boolean
+          rep_band: string
+          rope_unlocked?: boolean
+          store_capacity?: string | null
+          tier_label: string
           updated_at?: string
           updated_by: string
+          usb_unlocked?: boolean
         }
         Update: {
-          current_tier_id?: string
+          atm_payout?: string | null
+          gps_unlocked?: boolean
+          house_rob_payout?: string | null
+          launder_rate?: string | null
           member_id?: string
+          nos_unlocked?: boolean
+          rep_band?: string
+          rope_unlocked?: boolean
+          store_capacity?: string | null
+          tier_label?: string
           updated_at?: string
           updated_by?: string
+          usb_unlocked?: boolean
         }
         Relationships: [
-          {
-            foreignKeyName: "member_rep_current_tier_id_fkey"
-            columns: ["current_tier_id"]
-            isOneToOne: false
-            referencedRelation: "rep_tiers"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "member_rep_member_id_fkey"
             columns: ["member_id"]
@@ -311,51 +331,6 @@ export type Database = {
         }
         Relationships: []
       }
-      rep_tiers: {
-        Row: {
-          atm_payout: string | null
-          created_at: string
-          gps_unlocked: boolean
-          house_rob_payout: string | null
-          id: string
-          launder_rate: string | null
-          level_order: number
-          nos_unlocked: boolean
-          rope_unlocked: boolean
-          store_capacity: string | null
-          tier_label: string
-          usb_unlocked: boolean
-        }
-        Insert: {
-          atm_payout?: string | null
-          created_at?: string
-          gps_unlocked?: boolean
-          house_rob_payout?: string | null
-          id?: string
-          launder_rate?: string | null
-          level_order: number
-          nos_unlocked?: boolean
-          rope_unlocked?: boolean
-          store_capacity?: string | null
-          tier_label: string
-          usb_unlocked?: boolean
-        }
-        Update: {
-          atm_payout?: string | null
-          created_at?: string
-          gps_unlocked?: boolean
-          house_rob_payout?: string | null
-          id?: string
-          launder_rate?: string | null
-          level_order?: number
-          nos_unlocked?: boolean
-          rope_unlocked?: boolean
-          store_capacity?: string | null
-          tier_label?: string
-          usb_unlocked?: boolean
-        }
-        Relationships: []
-      }
       reputation_entries_legacy: {
         Row: {
           created_at: string
@@ -433,7 +408,6 @@ export type Database = {
           atm_payout: string | null
           created_at: string | null
           crew_rank: string | null
-          current_tier_id: string | null
           discord_avatar_url: string | null
           discord_username: string | null
           gps_unlocked: boolean | null
@@ -444,22 +418,14 @@ export type Database = {
           launder_rate: string | null
           nos_unlocked: boolean | null
           pending_remit_count: number | null
+          rep_band: string | null
           rope_unlocked: boolean | null
           store_capacity: string | null
           tier_label: string | null
-          tier_level_order: number | null
           total_approved_remit: number | null
           usb_unlocked: boolean | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "member_rep_current_tier_id_fkey"
-            columns: ["current_tier_id"]
-            isOneToOne: false
-            referencedRelation: "rep_tiers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       member_weekly_compliance: {
         Row: {

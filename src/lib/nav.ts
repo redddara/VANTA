@@ -11,14 +11,11 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", minRank: "Prospect", group: "main" },
   { href: "/roster", label: "Roster", minRank: "Operator", group: "main" },
-  { href: "/rep-tiers", label: "Rep Ladder", minRank: "Prospect", group: "main" },
-  { href: "/remit/mine", label: "Log My Remit", minRank: "Prospect", group: "actions" },
-  { href: "/remit/new", label: "Submit Remit", minRank: "Enforcer", group: "actions" },
+  { href: "/remit/mine", label: "Log Remit", minRank: "Prospect", group: "actions" },
   { href: "/remit/compliance", label: "Weekly Quota", minRank: "Enforcer", group: "actions" },
-  { href: "/reputation/new", label: "Set Rep Tier", minRank: "Enforcer", group: "actions" },
+  { href: "/reputation/new", label: "Set Reputation", minRank: "Enforcer", group: "actions" },
   { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
   { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
-  { href: "/admin/rep-tiers", label: "Manage Ladder", minRank: "Underboss", group: "admin" },
   { href: "/admin/members", label: "Members", minRank: "Underboss", group: "admin" },
   { href: "/admin/audit", label: "Audit Log", minRank: "Underboss", group: "admin" },
 ];

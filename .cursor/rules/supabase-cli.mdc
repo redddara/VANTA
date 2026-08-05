@@ -1,0 +1,26 @@
+---
+description: Use the linked Supabase CLI for all database work; never paste migrations into the dashboard SQL editor.
+alwaysApply: true
+---
+
+# Supabase via CLI
+
+This project is linked to the hosted Supabase project `vanta-portal` (`cihaacthhhfrflsszxif`). The agent owns schema changes through the CLI — do not ask the user to paste SQL into the dashboard.
+
+## Commands
+
+```bash
+npm run db:verify   # local migrations + RLS suite before push
+npm run db:push     # apply pending files in supabase/migrations/
+npm run db:types    # regenerate src/lib/types/database.types.ts
+npm run db:status   # compare local vs remote migration history
+```
+
+## Workflow
+
+1. Add or edit a migration under `supabase/migrations/` (timestamped SQL).
+2. Run `db:verify`, then `db:push`, then `db:types`.
+3. Never re-run an already-applied migration in the SQL editor.
+4. If history is wrong, use `npx supabase migration repair` — do not hand-apply the same file.
+
+Auth for the CLI is already on this machine (`supabase login` + Windows credential store). Prefer passwordless login-role access; only set `SUPABASE_DB_PASSWORD` if a command still prompts.

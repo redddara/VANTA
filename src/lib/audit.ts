@@ -17,7 +17,9 @@ const ACTIONS: Record<string, AuditMeta> = {
   // Retired with the points ledger; kept so older audit rows still read cleanly.
   "reputation.edit": { label: "Reputation edited", tone: "warning" },
   "reputation.delete": { label: "Reputation voided", tone: "negative" },
+  // Retired with the shared ladder; kept so older audit rows still read cleanly.
   "rep.tier_change": { label: "Rep tier changed", tone: "warning" },
+  "rep.set": { label: "Reputation set", tone: "warning" },
 };
 
 export function describeAction(action: string): AuditMeta {

@@ -1,4 +1,4 @@
-import { RANKS, REMIT_STATUSES } from "@/lib/constants";
+import { RANKS, REP_BANDS, REMIT_STATUSES } from "@/lib/constants";
 import type { Tables } from "@/lib/types/database.types";
 
 /**
@@ -6,6 +6,7 @@ import type { Tables } from "@/lib/types/database.types";
  * generated types widen them to `string`. These narrow them back for the app.
  */
 export type Rank = (typeof RANKS)[number];
+export type RepBand = (typeof REP_BANDS)[number];
 export type RemitStatus = (typeof REMIT_STATUSES)[number];
 
 export type Profile = Omit<Tables<"profiles">, "crew_rank"> & { crew_rank: Rank };
@@ -20,7 +21,6 @@ export type RemitLogWithType = RemitLog & {
   remit_type: Pick<RemitType, "id" | "name" | "is_weekly_quota"> | null;
 };
 
-export type RepTier = Tables<"rep_tiers">;
 export type MemberRep = Tables<"member_rep">;
 
 export type WeeklyCompliance = {
@@ -40,7 +40,7 @@ export type WeeklyCompliance = {
 
 export type AuditLogEntry = Tables<"audit_log">;
 
-/** Crafting unlocks that ride on a tier. Order matches the ladder table. */
+/** Crafting unlocks stored on each member's reputation profile. */
 export const CRAFTING_UNLOCKS = ["gps", "rope", "nos", "usb"] as const;
 export type CraftingUnlock = (typeof CRAFTING_UNLOCKS)[number];
 
@@ -70,8 +70,7 @@ export type MemberSummary = {
   crew_rank: Rank;
   is_active: boolean;
   created_at: string;
-  current_tier_id: string | null;
-  tier_level_order: number | null;
+  rep_band: RepBand | null;
   tier_label: string | null;
   house_rob_payout: string | null;
   atm_payout: string | null;

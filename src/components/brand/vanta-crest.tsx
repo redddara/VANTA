@@ -3,36 +3,51 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: "size-8 rounded-md",
-  md: "size-11 rounded-lg",
-  lg: "size-20 rounded-xl",
+  sm: "size-8",
+  md: "size-11",
+  lg: "size-20",
+  /** Login hero — animated crest. */
+  xl: "size-52 sm:size-64",
 } as const;
+
+const SIZE_PX: Record<keyof typeof SIZES, number> = {
+  sm: 32,
+  md: 44,
+  lg: 80,
+  xl: 256,
+};
 
 /** The crew crest, framed as a badge. */
 export function VantaCrest({
   size = "md",
   className,
   priority = false,
+  animated = false,
 }: {
   size?: keyof typeof SIZES;
   className?: string;
   priority?: boolean;
+  /** Use the animated GIF crest (login). Small nav marks stay on the static PNG. */
+  animated?: boolean;
 }) {
+  const px = SIZE_PX[size];
+
   return (
     <span
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden border border-primary/25 shadow-[0_0_24px_-8px_var(--primary)]",
+        "relative inline-flex shrink-0 items-center justify-center",
         SIZES[size],
         className,
       )}
     >
       <Image
-        src="/vanta-crest.png"
+        src={animated ? "/vanta-crest.gif" : "/vanta-crest.png"}
         alt=""
         fill
-        sizes="80px"
+        sizes={`${px}px`}
         priority={priority}
-        className="object-cover"
+        unoptimized={animated}
+        className="object-contain"
       />
     </span>
   );

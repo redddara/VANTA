@@ -36,13 +36,6 @@ const SubmitRemitSchema = z.object({
   description,
 });
 
-const SubmitOwnRemitSchema = z.object({
-  remitTypeId: uuid,
-  quantity,
-  amount,
-  description,
-});
-
 const EditRemitSchema = z.object({
   id: uuid,
   remitTypeId: uuid,
@@ -98,33 +91,6 @@ export async function submitRemit(input: {
 
   const { error } = await supabase.from("remit_logs").insert({
     member_id: parsed.data.memberId,
-    remit_type_id: parsed.data.remitTypeId,
-    quantity: parsed.data.quantity,
-    amount: optionalAmount(parsed.data.amount),
-    description: parsed.data.description || null,
-    submitted_by: profile.id,
-  });
-
-  if (error) return { ok: false, error: toActionError(error) };
-
-  revalidateRemit();
-  return { ok: true, message: "Remit submitted for approval." };
-}
-
-export async function submitOwnRemit(input: {
-  remitTypeId: string;
-  quantity: number;
-  amount?: number | null;
-  description?: string;
-}): Promise<ActionResult> {
-  const parsed = SubmitOwnRemitSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
-
-  const { profile } = await requireSession();
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("remit_logs").insert({
-    member_id: profile.id,
     remit_type_id: parsed.data.remitTypeId,
     quantity: parsed.data.quantity,
     amount: optionalAmount(parsed.data.amount),
@@ -199,6 +165,10 @@ export async function editRemit(input: {
   return { ok: true, message: "Remit entry updated and written to the audit log." };
 }
 
+/**
+ * Delete a remit row. Pending entries can be removed by the member (or the
+ * staffer who submitted them). Admins can void any status.
+ */
 export async function voidRemit(id: string): Promise<ActionResult> {
   const parsed = uuid.safeParse(id);
   if (!parsed.success) return { ok: false, error: "Invalid entry." };
@@ -211,10 +181,16 @@ export async function voidRemit(id: string): Promise<ActionResult> {
     .eq("id", parsed.data);
 
   if (error) return { ok: false, error: toActionError(error) };
-  if (!count) return { ok: false, error: "Only an admin can void remit entries." };
+  if (!count) {
+    return {
+      ok: false,
+      error:
+        "You can only delete your own pending remits. Ask an admin to void approved ones.",
+    };
+  }
 
   revalidateRemit();
-  return { ok: true, message: "Remit entry voided. A copy is kept in the audit log." };
+  return { ok: true, message: "Remit deleted. A copy is kept in the audit log." };
 }
 
 export async function createRemitType(input: {

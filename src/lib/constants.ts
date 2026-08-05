@@ -24,12 +24,21 @@ export const RANKS = [
 type Rank = (typeof RANKS)[number];
 
 export const RANK_DESCRIPTIONS: Record<Rank, string> = {
-  Prospect: "Can log their own remit, see the weekly quota progress, and view the reputation ladder.",
-  Operator: "Can see the roster, remit history, and their current reputation tier.",
-  Enforcer: "Can submit remit for others, view weekly quota compliance, and set reputation tiers.",
-  Captain: "Same as Enforcer: crew remit, weekly quota, and reputation tiers.",
-  Underboss: "Full control: ranks, remit approval, remit types, the reputation ladder, and the audit log.",
+  Prospect: "Can log remit and see their weekly quota progress and reputation.",
+  Operator: "Can see the roster, remit history, and each member's reputation.",
+  Enforcer: "Can log remit for others, view weekly quota compliance, and set reputation one member at a time.",
+  Captain: "Same as Enforcer: crew remit, weekly quota, and per-member reputation.",
+  Underboss: "Full control: ranks, remit approval, remit types, reputation, and the audit log.",
   Kingpin: "Everything an Underboss can do, and the only rank that can appoint another Kingpin.",
+};
+
+/** How high a member sits on reputation — set by staff with the profile. */
+export const REP_BANDS = ["low", "mid", "high"] as const;
+
+export const REP_BAND_LABELS: Record<(typeof REP_BANDS)[number], string> = {
+  low: "Low Rep",
+  mid: "Mid Rep",
+  high: "High Rep",
 };
 
 export const REMIT_STATUSES = ["pending", "approved", "rejected"] as const;

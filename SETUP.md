@@ -47,18 +47,53 @@ Everything — tables, policies, triggers, the roster view — lives in
 `supabase/migrations/`. Push it with the Supabase CLI, which is already a dev
 dependency of this project.
 
+### One-time: log the CLI into your account
+
+Do this once on the machine Cursor uses. After that, Cursor can push migrations,
+regenerate types, and check remote history without opening the SQL editor.
+
 ```bash
 npx supabase login          # opens a browser to authorise the CLI
 npx supabase link --project-ref YOUR_PROJECT_REF
 npm run db:push             # applies every migration in order
 ```
 
-`db:push` prompts for the database password from step 1.
+`login` stores an access token in your OS credential store. Newer CLI versions
+talk to the database through a temporary login role from that token, so you
+usually do **not** need to paste the database password for everyday `db:push`.
+
+If a command still asks for a password (CI, a new machine, or an older CLI), set
+it once in the shell or in a local env file that is never committed:
+
+```bash
+# PowerShell (current session)
+$env:SUPABASE_DB_PASSWORD = "your-db-password-from-step-1"
+```
+
+Optional for headless / CI only: create a personal access token at
+[supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+and set `SUPABASE_ACCESS_TOKEN`. Local Cursor work should use `supabase login`
+instead.
 
 **Verify it worked.** In the Supabase dashboard open **Table Editor**; you
-should see `profiles`, `remit_logs`, `rep_tiers`, `member_rep` and `audit_log`, each
+should see `profiles`, `remit_logs`, `member_rep` and `audit_log`, each
 showing an **RLS enabled** badge. Under **Database → Views** you should see
-`member_summary`.
+`member_summary`. Or from the repo: `npm run db:status` (local and remote
+migration versions should match).
+
+### Let Cursor own Supabase work
+
+After `login` + `link`, ask Cursor to change the schema. The usual loop is:
+
+```bash
+npm run db:verify   # local Postgres + RLS suite
+npm run db:push     # apply pending migrations to the linked project
+npm run db:types    # refresh src/lib/types/database.types.ts
+npm run db:status   # confirm local and remote history match
+```
+
+Do **not** paste migration files into the dashboard SQL editor once the project
+is linked — that skips migration history and breaks later `db:push` runs.
 
 ### If you would rather not use the CLI
 
@@ -122,8 +157,8 @@ Click **Save**.
 
 Go to **Authentication → URL Configuration** and set:
 
-- **Site URL**: `http://localhost:3000` for now. Change this to your Vercel URL
-  after step 5.
+- **Site URL**: `https://vanta-two-xi.vercel.app` (production). Keep localhost
+  in Redirect URLs so local `npm run dev` still works.
 - **Redirect URLs**: add both of these, one per line:
 
 ```
@@ -204,11 +239,11 @@ way to give them access. Only an admin can set a rank.
 
 | Rank        | Can do                                                                      |
 | ----------- | --------------------------------------------------------------------------- |
-| `Prospect`  | Log their own remit and view the reputation ladder                           |
-| `Operator`  | The above, plus the roster and their current reputation tier                 |
-| `Enforcer`  | The above, plus log remit for any member and set reputation tiers            |
+| `Prospect`  | Log their own remit and see their own reputation                             |
+| `Operator`  | The above, plus the roster and each member's reputation                      |
+| `Enforcer`  | The above, plus log remit for any member and set reputation one-by-one       |
 | `Captain`   | The same as Enforcer                                                        |
-| `Underboss` | Everything: set ranks, approve remit, correct the ledger, read the audit log |
+| `Underboss` | Everything: set ranks, approve remit, set reputation, read the audit log     |
 | `Kingpin`   | The same as Underboss, and the only rank that can appoint another Kingpin    |
 
 Two rules the database enforces no matter what the UI shows: the crew can never
@@ -217,7 +252,7 @@ be left without an active Kingpin, and only a Kingpin can appoint another one.
 **Retiring a member** — set them to inactive in **Admin → Members** rather than
 deleting them. They drop off the roster and lose all write access immediately,
 including the ability to log their own remit, but their remit history and
-reputation tier stay intact.
+reputation stay intact.
 
 ---
 
@@ -306,7 +341,7 @@ An admin set `is_active = false`. Reactivate in **Admin → Members**, or in SQL
 **A page is empty when it should have data**
 Almost always RLS working as intended — the signed-in rank cannot see those
 rows. A `Prospect` in particular sees no roster, but can still view the
-reputation ladder and their own tier if one has been assigned.
+reputation if staff have set one.
 Confirm the account's rank in **Admin → Members**.
 
 **Signed in but no profile row exists**

@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 
 import { CraftingUnlockBadges } from "@/components/reputation/crafting-unlocks";
+import { RepBandBadge } from "@/components/reputation/rep-band-badge";
 import { TierPayouts } from "@/components/reputation/tier-payouts";
+import { RemitDeleteButton } from "@/components/remit/remit-delete-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
@@ -28,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireSession } from "@/lib/auth";
+import { REP_BAND_LABELS } from "@/lib/constants";
 import { displayName } from "@/lib/display";
 import { formatDateTime, formatMoney, formatRelative } from "@/lib/format";
 import {
@@ -79,7 +82,7 @@ export default async function DashboardPage() {
 
   const approvedRemit = Number(summary?.total_approved_remit ?? 0);
   const pendingCount = Number(summary?.pending_remit_count ?? 0);
-  const hasTier = Boolean(summary?.current_tier_id);
+  const hasRep = Boolean(summary?.tier_label);
   const quotaMet = compliance?.quota_met ?? false;
 
   return (
@@ -91,9 +94,6 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm">
               <Link href="/remit/mine">Log remit</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/rep-tiers">Rep ladder</Link>
             </Button>
             {!isProspect && (
               <Button asChild variant="outline" size="sm">
@@ -123,14 +123,14 @@ export default async function DashboardPage() {
           }
         />
         <StatCard
-          label="Reputation tier"
+          label="Reputation"
           value={summary?.tier_label ?? "Unassigned"}
           icon={Layers}
-          tone={hasTier ? "accent" : "default"}
+          tone={hasRep ? "accent" : "default"}
           hint={
-            hasTier
-              ? `Level ${summary?.tier_level_order}`
-              : "Staff still need to place you on the ladder"
+            hasRep && summary?.rep_band
+              ? REP_BAND_LABELS[summary.rep_band]
+              : "Staff still need to set your reputation"
           }
         />
         <StatCard
@@ -156,22 +156,20 @@ export default async function DashboardPage() {
         <Card className="gap-0 overflow-hidden py-0">
           <CardHeader className="flex-row items-center gap-2 border-b py-4">
             <Shield className="text-muted-foreground size-4" />
-            <CardTitle className="text-base">Your tier</CardTitle>
+            <CardTitle className="text-base">Your reputation</CardTitle>
           </CardHeader>
 
-          {!hasTier || !summary ? (
+          {!hasRep || !summary ? (
             <EmptyState
               icon={Layers}
-              title="No tier assigned"
-              description="When staff place you on the ladder, your payouts and crafting unlocks show up here."
+              title="No reputation set"
+              description="When staff enter your payouts and crafting unlocks, they show up here."
             />
           ) : (
             <CardContent className="space-y-5 py-5">
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
                 <p className="text-lg font-semibold">{summary.tier_label}</p>
-                <p className="text-muted-foreground text-sm">
-                  Level {summary.tier_level_order}
-                </p>
+                <RepBandBadge band={summary.rep_band} />
               </div>
               <TierPayouts tier={summary} />
               <div>
@@ -202,32 +200,43 @@ export default async function DashboardPage() {
                   <TableHead className="hidden sm:table-cell">Cash</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">When</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {remit.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-medium">
-                      {log.quantity}× {log.remit_type?.name ?? "Remit"}
-                      {log.description ? (
-                        <p className="text-muted-foreground mt-1 max-w-48 truncate text-xs font-normal">
-                          {log.description}
-                        </p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="tabular text-muted-foreground hidden sm:table-cell">
-                      {log.amount != null ? formatMoney(log.amount) : "\u2014"}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={log.status as RemitStatus} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-right text-xs whitespace-nowrap">
-                      <time dateTime={log.created_at} title={formatDateTime(log.created_at)}>
-                        {formatRelative(log.created_at)}
-                      </time>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {remit.map((log) => {
+                  const label = `${log.quantity}× ${log.remit_type?.name ?? "Remit"}`;
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">
+                        {label}
+                        {log.description ? (
+                          <p className="text-muted-foreground mt-1 max-w-48 truncate text-xs font-normal">
+                            {log.description}
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="tabular text-muted-foreground hidden sm:table-cell">
+                        {log.amount != null ? formatMoney(log.amount) : "\u2014"}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={log.status as RemitStatus} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-right text-xs whitespace-nowrap">
+                        <time dateTime={log.created_at} title={formatDateTime(log.created_at)}>
+                          {formatRelative(log.created_at)}
+                        </time>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <RemitDeleteButton
+                          id={log.id}
+                          status={log.status}
+                          label={label}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

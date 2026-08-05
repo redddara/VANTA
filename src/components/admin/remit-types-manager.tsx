@@ -230,7 +230,7 @@ function TypeEditorDialog({
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Chopmats" {...field} />
+                    <Input placeholder="Chopmats — Aluminum" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -273,7 +273,11 @@ function TypeEditorDialog({
                         name={field.name}
                         ref={field.ref}
                         onBlur={field.onBlur}
-                        value={field.value ?? ""}
+                        value={
+                          field.value == null || Number.isNaN(field.value)
+                            ? ""
+                            : field.value
+                        }
                         onChange={(event) =>
                           field.onChange(
                             event.target.value === ""

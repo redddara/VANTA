@@ -1,30 +1,35 @@
 import type { Metadata } from "next";
 import { Banknote } from "lucide-react";
 
-import { OwnRemitForm } from "@/components/remit/own-remit-form";
+import { RemitDeleteButton } from "@/components/remit/remit-delete-button";
+import { RemitForm } from "@/components/remit/remit-form";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
+import { PersonCell } from "@/components/shared/person-cell";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
 import { formatMoney, formatRelative } from "@/lib/format";
+import { getSelectableMembers } from "@/lib/members";
 import { REMIT_SELECT, REMIT_TYPE_SELECT, WEEKLY_COMPLIANCE_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  RemitLogWithPeople,
-  RemitStatus,
-  RemitType,
-  WeeklyCompliance,
+import {
+  isStaff,
+  type RemitLogWithPeople,
+  type RemitStatus,
+  type RemitType,
+  type WeeklyCompliance,
 } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Log remit" };
 
-export default async function OwnRemitPage() {
+export default async function LogRemitPage() {
   const { profile } = await requireSession();
   const supabase = await createClient();
+  const staff = isStaff(profile.crew_rank);
 
-  const [typesResult, recentResult, complianceResult] = await Promise.all([
+  const [typesResult, recentResult, complianceResult, members] = await Promise.all([
     supabase
       .from("remit_types")
       .select(REMIT_TYPE_SELECT)
@@ -33,7 +38,11 @@ export default async function OwnRemitPage() {
     supabase
       .from("remit_logs")
       .select(REMIT_SELECT)
-      .eq("member_id", profile.id)
+      .or(
+        staff
+          ? `member_id.eq.${profile.id},submitted_by.eq.${profile.id}`
+          : `member_id.eq.${profile.id}`,
+      )
       .order("created_at", { ascending: false })
       .limit(12)
       .returns<RemitLogWithPeople[]>(),
@@ -42,6 +51,7 @@ export default async function OwnRemitPage() {
       .select(WEEKLY_COMPLIANCE_SELECT)
       .eq("member_id", profile.id)
       .maybeSingle<WeeklyCompliance>(),
+    staff ? getSelectableMembers() : Promise.resolve([]),
   ]);
 
   const types = typesResult.data ?? [];
@@ -51,8 +61,12 @@ export default async function OwnRemitPage() {
   return (
     <>
       <PageHeader
-        title="Log My Remit"
-        description="Record contracts and materials you handed over. Entries stay pending until an admin approves them."
+        title="Log Remit"
+        description={
+          staff
+            ? "Log for yourself by default. Staff can credit someone else. Pending mistakes can be deleted."
+            : "Record contracts and materials you handed over. Pending mistakes can be deleted."
+        }
       />
 
       {compliance ? (
@@ -75,13 +89,18 @@ export default async function OwnRemitPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card className="py-6">
           <CardContent>
-            <OwnRemitForm types={types} />
+            <RemitForm
+              members={members}
+              types={types}
+              selfId={profile.id}
+              canCreditOthers={staff}
+            />
           </CardContent>
         </Card>
 
         <Card className="h-fit gap-0 overflow-hidden py-0">
           <CardHeader className="border-b py-4">
-            <CardTitle className="text-sm">Your recent remit</CardTitle>
+            <CardTitle className="text-sm">Recent remit</CardTitle>
           </CardHeader>
 
           {recentEntries.length === 0 ? (
@@ -93,26 +112,44 @@ export default async function OwnRemitPage() {
             />
           ) : (
             <ul className="divide-border/60 divide-y">
-              {recentEntries.map((entry) => (
-                <li key={entry.id} className="flex items-start gap-3 p-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">
-                      {entry.quantity}× {entry.remit_type?.name ?? "Remit"}
-                    </p>
-                    {entry.amount != null ? (
-                      <p className="text-muted-foreground tabular mt-0.5 text-xs">
-                        {formatMoney(entry.amount)}
+              {recentEntries.map((entry) => {
+                const label = `${entry.quantity}× ${entry.remit_type?.name ?? "Remit"}`;
+                const showMember =
+                  staff && entry.member_id !== profile.id;
+                return (
+                  <li key={entry.id} className="flex items-start gap-2 p-3">
+                    <div className="min-w-0 flex-1">
+                      {showMember ? (
+                        <PersonCell person={entry.member} compact />
+                      ) : null}
+                      <p
+                        className={cn(
+                          "text-sm font-medium",
+                          showMember && "mt-1",
+                        )}
+                      >
+                        {label}
                       </p>
-                    ) : null}
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {formatRelative(entry.created_at)}
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    <StatusBadge status={entry.status as RemitStatus} />
-                  </div>
-                </li>
-              ))}
+                      {entry.amount != null ? (
+                        <p className="text-muted-foreground tabular mt-0.5 text-xs">
+                          {formatMoney(entry.amount)}
+                        </p>
+                      ) : null}
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {formatRelative(entry.created_at)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <RemitDeleteButton
+                        id={entry.id}
+                        status={entry.status}
+                        label={label}
+                      />
+                      <StatusBadge status={entry.status as RemitStatus} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

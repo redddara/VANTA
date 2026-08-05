@@ -21,8 +21,8 @@ export default async function LoginPage({
 
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
-          <VantaCrest size="lg" priority />
-          <VantaWordmark className="mt-6 text-3xl" />
+          <VantaCrest size="xl" animated priority />
+          <VantaWordmark className="mt-8 text-3xl sm:text-4xl" />
           <p className="text-muted-foreground mt-3 text-sm">Member Portal</p>
         </div>
 

@@ -22,7 +22,7 @@ create table public.remit_types (
   created_at timestamptz not null default now()
 );
 
--- At most one weekly-quota type. Enforced so compliance always has a single
+-- At most one weekly-quota type. Enforced so compliance always has a singledddasa
 -- target to measure against.
 create unique index remit_types_one_weekly_quota_idx
   on public.remit_types ((true))

@@ -5,6 +5,7 @@ import { Pencil, Search, Users } from "lucide-react";
 
 import { MemberEditorDialog } from "@/components/admin/member-editor-dialog";
 import { RankBadge } from "@/components/nav/rank-badge";
+import { RepBandBadge } from "@/components/reputation/rep-band-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
 import { Badge } from "@/components/ui/badge";
@@ -125,7 +126,7 @@ export function MembersTable({
               <TableRow>
                 <TableHead>Member</TableHead>
                 <TableHead className="hidden sm:table-cell">Rank</TableHead>
-                <TableHead>Rep tier</TableHead>
+                <TableHead>Reputation</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">
                   Approved remit
                 </TableHead>
@@ -162,9 +163,14 @@ export function MembersTable({
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-sm font-medium">
-                      {member.tier_label ?? (
-                        <span className="text-muted-foreground font-normal">—</span>
+                    <TableCell>
+                      {member.tier_label ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">{member.tier_label}</span>
+                          <RepBandBadge band={member.rep_band} />
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
 

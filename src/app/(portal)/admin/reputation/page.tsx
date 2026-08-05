@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Old points ledger route — the ladder lives at /admin/rep-tiers now. */
+/** Old routes — reputation is set one member at a time. */
 export default function AdminReputationRedirect() {
-  redirect("/admin/rep-tiers");
+  redirect("/reputation/new");
 }

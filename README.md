@@ -13,9 +13,8 @@ Tracks two things per crew member, plus the accountability trail around them:
 - **Remit logs** — contributions submitted for the org. Anyone can log their own,
   an Enforcer or above can log one on another member's behalf, an admin approves
   it, and only approved remit counts toward a member's total.
-- **Reputation** — a job-progression ladder. Each tier has payout rates and
-  crafting unlocks; Enforcers and above place members on a tier, and admins edit
-  the ladder itself.
+- **Reputation** — per-member payout rates and crafting unlocks. Enforcers and
+  above enter each person's values one at a time; there is no shared ladder.
 - **Audit log** — every privileged edit, void and rank change, written by
   database triggers rather than application code.
 
@@ -57,11 +56,11 @@ thing that decides what they can do, and only an admin can change it.
 
 | Rank        | Can do                                                                        |
 | ----------- | ----------------------------------------------------------------------------- |
-| `Prospect`  | Log their own remit and view the reputation ladder                             |
-| `Operator`  | The above, plus the roster and their current reputation tier                   |
-| `Enforcer`  | The above, plus log remit for any member and set reputation tiers              |
+| `Prospect`  | Log their own remit and see their own reputation                               |
+| `Operator`  | The above, plus the roster and each member's reputation                        |
+| `Enforcer`  | The above, plus log remit for any member and set reputation one-by-one         |
 | `Captain`   | The same as Enforcer                                                          |
-| `Underboss` | Everything: set ranks, approve remit, edit the ladder, read the audit log      |
+| `Underboss` | Everything: set ranks, approve remit, set reputation, read the audit log       |
 | `Kingpin`   | The same as Underboss, and the only rank that can appoint another Kingpin      |
 
 New accounts start as `Prospect` and are promoted by hand in
@@ -78,8 +77,7 @@ calls the API directly, the database still refuses.
 | -------------------- | ---------------------------------------- | -------------------------------------------------------- |
 | `profiles`           | own row; `Operator`+ see the whole roster | own `ingame_name`; admins set rank and active status      |
 | `remit_logs`         | own rows; `Enforcer`+ see all            | anyone inserts for themselves, `Enforcer`+ for any member, always pending; admins update and delete |
-| `rep_tiers`          | everyone                                 | admins insert/update/delete                               |
-| `member_rep`         | everyone                                 | `Enforcer`+ set a member's current tier                   |
+| `member_rep`         | everyone                                 | `Enforcer`+ set a member's reputation profile             |
 | `audit_log`          | admins only                              | nobody — triggers only                                    |
 
 A few guarantees worth calling out, because they are enforced structurally
@@ -101,8 +99,8 @@ rather than by convention:
 - **Deactivating a member revokes access immediately.** The rank helper checks
   `is_active`, so an inactive Captain loses write access without any session
   invalidation.
-- **Reputation is a current tier, not a score.** The roster shows each member's
-  ladder level; there is no accumulating points history.
+- **Reputation is a per-member profile, not a score.** Staff type each person's
+  label, payouts and unlocks; there is no accumulating points history.
 
 ## Layout
 
@@ -110,13 +108,11 @@ rather than by convention:
 src/
   app/
     (portal)/          authenticated pages, shared header and nav
-      dashboard/       own tier, payouts and remit history
+      dashboard/       own reputation, payouts and remit history
       roster/          searchable, sortable crew roster
-      rep-tiers/       full reputation ladder (every member)
-      remit/mine/      log a contribution for yourself (any rank)
-      remit/new/       Enforcer+: log a contribution for another member
-      reputation/new/  Enforcer+: place a member on a tier
-      admin/           members, remit queue, ladder editor, audit log
+      remit/mine/      log remit (staff can credit someone else)
+      reputation/new/  Enforcer+: set one member's reputation fields
+      admin/           members, remit queue, remit types, audit log
       settings/        edit your own in-game name
     auth/              OAuth callback, sign-out, error page
     login/             the only public page

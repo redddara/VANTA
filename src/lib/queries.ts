@@ -26,14 +26,9 @@ export const AUDIT_SELECT = `
   actor:profiles!audit_log_actor_id_fkey(${PERSON})
 `;
 
-export const REP_TIER_SELECT = `
-  id, level_order, tier_label, house_rob_payout, atm_payout, launder_rate,
-  store_capacity, gps_unlocked, rope_unlocked, nos_unlocked, usb_unlocked, created_at
-`;
-
 export const MEMBER_SUMMARY_SELECT = `
   id, discord_username, discord_avatar_url, ingame_name, crew_rank,
-  is_active, created_at, current_tier_id, tier_level_order, tier_label,
+  is_active, created_at, rep_band, tier_label,
   house_rob_payout, atm_payout, launder_rate, store_capacity,
   gps_unlocked, rope_unlocked, nos_unlocked, usb_unlocked,
   total_approved_remit, pending_remit_count
