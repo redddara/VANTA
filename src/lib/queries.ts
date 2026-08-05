@@ -56,3 +56,15 @@ export const INVENTORY_MOVEMENT_SELECT = `
   member:profiles!inventory_movements_member_id_fkey(${PERSON}),
   logger:profiles!inventory_movements_created_by_fkey(${PERSON})
 `;
+
+export const STRATEGY_CATEGORY_SELECT = `
+  id, name, sort_order, created_at
+`;
+
+export const STRATEGY_SELECT = `
+  id, category_id, title, description, video_url,
+  created_by, updated_by, created_at, updated_at,
+  category:strategy_categories!strategies_category_id_fkey(id, name, sort_order),
+  creator:profiles!strategies_created_by_fkey(${PERSON}),
+  editor:profiles!strategies_updated_by_fkey(${PERSON})
+`;

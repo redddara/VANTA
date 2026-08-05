@@ -549,6 +549,113 @@ export type Database = {
           },
         ]
       }
+      strategies: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          video_url: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategies_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "strategy_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "strategies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategies_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategies_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "strategies_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       inventory_stock: {

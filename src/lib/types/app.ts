@@ -59,6 +59,16 @@ export type WeeklyCompliance = {
 
 export type AuditLogEntry = Tables<"audit_log">;
 
+export type StrategyCategory = Tables<"strategy_categories">;
+
+export type Strategy = Tables<"strategies">;
+
+export type StrategyWithCategory = Strategy & {
+  category: Pick<StrategyCategory, "id" | "name" | "sort_order"> | null;
+  creator: ProfileRef | null;
+  editor: ProfileRef | null;
+};
+
 /** Crafting unlocks stored on each member's reputation profile. */
 export const CRAFTING_UNLOCKS = ["gps", "rope", "nos", "usb"] as const;
 export type CraftingUnlock = (typeof CRAFTING_UNLOCKS)[number];

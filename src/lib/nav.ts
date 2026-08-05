@@ -11,6 +11,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", minRank: "Prospect", group: "main" },
   { href: "/roster", label: "Roster", minRank: "Operator", group: "main" },
+  { href: "/strategies", label: "Strategies", minRank: "Prospect", group: "main" },
   { href: "/remit/mine", label: "Log Remit", minRank: "Prospect", group: "actions" },
   { href: "/remit/tracker", label: "Remit Tracker", minRank: "Enforcer", group: "actions" },
   { href: "/inventory", label: "Inventory", minRank: "Enforcer", group: "actions" },

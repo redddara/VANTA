@@ -1140,6 +1140,58 @@ async function main() {
     assert(asDate(rows[0].week_start) === future, "compliance RPC used the wrong week");
   });
 
+  console.log("\nstrategies handbook");
+
+  await check("seeded strategy categories are readable by a Prospect", async () => {
+    const { rows } = await as(
+      prospectId,
+      "select name from public.strategy_categories order by sort_order;",
+    );
+    assert(rows.length >= 3, "expected seeded categories");
+    assert(
+      rows.some((r) => r.name === "Block Strategy"),
+      "Block Strategy missing",
+    );
+  });
+
+  await denied(
+    "a Captain cannot create a strategy",
+    () =>
+      as(
+        captainId,
+        `insert into public.strategies (category_id, title, created_by)
+         select id, 'Fake Strat', $1 from public.strategy_categories limit 1;`,
+        [captainId],
+      ),
+    "row-level security",
+  );
+
+  await check("an Underboss can create and update a strategy", async () => {
+    const { rows: cats } = await as(
+      underbossId,
+      "select id from public.strategy_categories where name = 'Chase Switch';",
+    );
+    const { rows } = await as(
+      underbossId,
+      `insert into public.strategies (category_id, title, description, video_url, created_by)
+       values ($1, 'Switch drill', 'Pass left, take right', 'https://youtu.be/dQw4w9WgXcQ', $2)
+       returning id, title, created_by;`,
+      [cats[0].id, underbossId],
+    );
+    assert(rows[0].created_by === underbossId, "created_by should be stamped");
+    await as(
+      underbossId,
+      `update public.strategies set title = 'Switch drill v2', updated_by = $1 where id = $2;`,
+      [underbossId, rows[0].id],
+    );
+    const { rows: read } = await as(
+      prospectId,
+      "select title from public.strategies where id = $1;",
+      [rows[0].id],
+    );
+    assert(read[0].title === "Switch drill v2", "Prospect should see the update");
+  });
+
   console.log(
     `\n${failures.length === 0 ? "PASS" : "FAIL"} \u2014 ${passed} passed, ${failures.length} failed\n`,
   );

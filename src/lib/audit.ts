@@ -28,6 +28,12 @@ const ACTIONS: Record<string, AuditMeta> = {
   // Retired with the shared ladder; kept so older audit rows still read cleanly.
   "rep.tier_change": { label: "Rep tier changed", tone: "warning" },
   "rep.set": { label: "Reputation set", tone: "warning" },
+  "strategy.create": { label: "Strategy added", tone: "positive" },
+  "strategy.edit": { label: "Strategy edited", tone: "warning" },
+  "strategy.delete": { label: "Strategy deleted", tone: "negative" },
+  "strategy.category_create": { label: "Strategy category added", tone: "positive" },
+  "strategy.category_edit": { label: "Strategy category edited", tone: "warning" },
+  "strategy.category_delete": { label: "Strategy category deleted", tone: "negative" },
 };
 
 /** Known action keys for filter dropdowns (newest crew actions first). */
@@ -50,6 +56,12 @@ export const AUDIT_ACTION_FILTERS = [
   "rep.tier_change",
   "reputation.edit",
   "reputation.delete",
+  "strategy.create",
+  "strategy.edit",
+  "strategy.delete",
+  "strategy.category_create",
+  "strategy.category_edit",
+  "strategy.category_delete",
   "role.change",
 ] as const;
 

@@ -28,7 +28,7 @@ export const RANK_DESCRIPTIONS: Record<Rank, string> = {
   Operator: "Can see the roster, remit history, and each member's reputation.",
   Enforcer: "Can log remit for others, view the remit tracker, set reputation, and log inventory in/out.",
   Captain: "Same as Enforcer: crew remit, tracker, reputation, and inventory.",
-  Underboss: "Full control: ranks, remit approval, advance week moves, remit types, inventory items, reputation, and the audit log.",
+  Underboss: "Full control: ranks, remit approval, advance week moves, remit types, inventory items, strategies, reputation, and the audit log.",
   Kingpin: "Everything an Underboss can do, and the only rank that can appoint another Kingpin.",
 };
 
