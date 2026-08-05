@@ -1,0 +1,249 @@
+/* Standalone thermite / circuit rhythm practice — not tied to glitch NUI CSS */
+#thermite-game {
+  display: none;
+  width: min(94vw, 720px);
+  margin: 0 auto;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #0c1828 0%, #142a40 55%, #0e1f30 100%);
+  border: 1px solid rgba(45, 212, 168, 0.45);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  color: #e8edf4;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+#thermite-game.is-active {
+  display: block;
+}
+
+#thermite-game h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  color: #2dd4a8;
+}
+
+#thermite-game .thermite-sub {
+  margin: 0 0 1rem;
+  color: #8b9cb3;
+  font-size: 0.9rem;
+}
+
+.thermite-stage {
+  position: relative;
+  height: 400px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(45, 212, 168, 0.25);
+  overflow: hidden;
+}
+
+.thermite-lanes {
+  display: flex;
+  justify-content: space-evenly;
+  height: 100%;
+}
+
+.thermite-lane {
+  position: relative;
+  width: 56px;
+  height: 100%;
+  background: rgba(0, 40, 75, 0.85);
+  border-left: 1px solid rgba(45, 212, 168, 0.15);
+  border-right: 1px solid rgba(45, 212, 168, 0.15);
+}
+
+.thermite-note {
+  position: absolute;
+  left: 4px;
+  width: 48px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #6ef0d0, #2dd4a8);
+  box-shadow: 0 0 10px rgba(45, 212, 168, 0.75);
+}
+
+.thermite-hit-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 52px;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #2dd4a8, transparent);
+  box-shadow: 0 0 14px rgba(45, 212, 168, 0.9);
+  pointer-events: none;
+}
+
+.thermite-keys {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.thermite-key {
+  width: 48px;
+  height: 38px;
+  border-radius: 6px;
+  border: 2px solid #2dd4a8;
+  background: rgba(0, 55, 90, 0.95);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thermite-key.is-lit {
+  background: rgba(45, 212, 168, 0.35);
+  transform: translateY(-3px);
+}
+
+.thermite-feedback {
+  position: absolute;
+  bottom: 58px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.thermite-feedback.show {
+  opacity: 1;
+}
+
+.thermite-feedback.perfect,
+.thermite-feedback.great,
+.thermite-feedback.okay {
+  color: #2dd4a8;
+}
+
+.thermite-feedback.miss {
+  color: #ff6b6b;
+}
+
+.thermite-status {
+  margin-top: 0.85rem;
+  min-height: 1.4rem;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.thermite-progress-wrap {
+  margin-top: 0.65rem;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.thermite-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #1a8c6f, #2dd4a8);
+  transition: width 0.1s linear;
+}
+
+.thermite-progress-wrap.is-unlimited .thermite-progress-bar {
+  animation: thermiteUnlimitedPulse 2s ease-in-out infinite;
+}
+
+@keyframes thermiteUnlimitedPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.thermite-progress-label {
+  margin-top: 0.35rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #8b9cb3;
+}
+
+.thermite-score-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(45, 212, 168, 0.35);
+}
+
+.thermite-score-hud.hidden {
+  display: none !important;
+}
+
+.thermite-score-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 5rem;
+}
+
+.thermite-score-value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #2dd4a8;
+  text-shadow: 0 0 18px rgba(45, 212, 168, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermite-score-value.is-bump {
+  animation: thermiteScoreBump 0.22s ease-out;
+}
+
+@keyframes thermiteScoreBump {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.thermite-score-caption {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #8b9cb3;
+}
+
+.thermite-score-side {
+  text-align: right;
+  font-size: 0.85rem;
+  color: #8b9cb3;
+}
+
+.thermite-score-best {
+  margin-bottom: 0.35rem;
+}
+
+.thermite-score-best strong,
+.thermite-score-meta strong {
+  color: #e8edf4;
+  font-weight: 700;
+}
+
+.thermite-score-meta strong {
+  color: #ffb347;
+}

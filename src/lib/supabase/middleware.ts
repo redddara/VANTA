@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 import type { Database } from "@/lib/types/database.types";
+import { canViewRoster } from "@/lib/types/app";
 
 /** Routes reachable without a session. Everything else redirects to /login. */
 const PUBLIC_PATHS = [
@@ -15,6 +16,16 @@ const PUBLIC_PATHS = [
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+/** HTML entry points for the practice pack — Operator+ only (same as /hacking). */
+function isHackingPracticeEntry(pathname: string) {
+  return (
+    pathname === "/hacking-practice" ||
+    pathname === "/hacking-practice/" ||
+    pathname === "/hacking-practice/index.html" ||
+    pathname === "/hacking-practice/thermite.html"
   );
 }
 
@@ -92,6 +103,21 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";
     return redirectKeepingCookies(redirectUrl);
+  }
+
+  if (user && isHackingPracticeEntry(pathname)) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("crew_rank")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!canViewRoster(profile?.crew_rank ?? null)) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      redirectUrl.search = "";
+      return redirectKeepingCookies(redirectUrl);
+    }
   }
 
   return response;
