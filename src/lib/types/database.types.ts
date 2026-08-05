@@ -559,6 +559,7 @@ export type Database = {
           title: string
           updated_at: string
           updated_by: string | null
+          video_path: string | null
           video_url: string | null
         }
         Insert: {
@@ -570,6 +571,7 @@ export type Database = {
           title: string
           updated_at?: string
           updated_by?: string | null
+          video_path?: string | null
           video_url?: string | null
         }
         Update: {
@@ -581,6 +583,7 @@ export type Database = {
           title?: string
           updated_at?: string
           updated_by?: string | null
+          video_path?: string | null
           video_url?: string | null
         }
         Relationships: [

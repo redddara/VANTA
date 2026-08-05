@@ -1155,34 +1155,34 @@ async function main() {
   });
 
   await denied(
-    "a Captain cannot create a strategy",
+    "an Operator cannot create a strategy",
     () =>
       as(
-        captainId,
+        operatorId,
         `insert into public.strategies (category_id, title, created_by)
          select id, 'Fake Strat', $1 from public.strategy_categories limit 1;`,
-        [captainId],
+        [operatorId],
       ),
     "row-level security",
   );
 
-  await check("an Underboss can create and update a strategy", async () => {
+  await check("a Captain (Enforcer+) can create and update a strategy", async () => {
     const { rows: cats } = await as(
-      underbossId,
+      captainId,
       "select id from public.strategy_categories where name = 'Chase Switch';",
     );
     const { rows } = await as(
-      underbossId,
+      captainId,
       `insert into public.strategies (category_id, title, description, video_url, created_by)
        values ($1, 'Switch drill', 'Pass left, take right', 'https://youtu.be/dQw4w9WgXcQ', $2)
        returning id, title, created_by;`,
-      [cats[0].id, underbossId],
+      [cats[0].id, captainId],
     );
-    assert(rows[0].created_by === underbossId, "created_by should be stamped");
+    assert(rows[0].created_by === captainId, "created_by should be stamped");
     await as(
-      underbossId,
+      captainId,
       `update public.strategies set title = 'Switch drill v2', updated_by = $1 where id = $2;`,
-      [underbossId, rows[0].id],
+      [captainId, rows[0].id],
     );
     const { rows: read } = await as(
       prospectId,

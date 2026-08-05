@@ -29,7 +29,7 @@ export function VantaCrest({
   size?: keyof typeof SIZES;
   className?: string;
   priority?: boolean;
-  /** Use the animated GIF crest (login). Small nav marks stay on the static PNG. */
+  /** Use the animated GIF crest (nav + login). Static PNG is the fallback. */
   animated?: boolean;
 }) {
   const px = SIZE_PX[size];

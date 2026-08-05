@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shared";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const uuid = z.uuid("Pick a value from the list.");
@@ -27,24 +27,13 @@ const StrategySchema = z.object({
     .max(4000, "Keep the description under 4000 characters.")
     .optional()
     .nullable(),
-  videoUrl: z
+  videoPath: z
     .string()
     .trim()
-    .max(500, "Keep the video URL under 500 characters.")
+    .max(500, "Video path is too long.")
     .optional()
-    .nullable()
-    .refine(
-      (value) => {
-        if (value == null || value === "") return true;
-        try {
-          new URL(value);
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      { message: "Enter a valid URL." },
-    ),
+    .nullable(),
+  clearVideo: z.boolean().optional(),
 });
 
 function revalidateStrategies() {
@@ -62,7 +51,7 @@ export async function createStrategyCategory(input: {
   name: string;
   sortOrder: number;
 }): Promise<ActionResult> {
-  await requireAdmin();
+  await requireStaff();
   const parsed = CategorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -82,7 +71,7 @@ export async function updateStrategyCategory(input: {
   name: string;
   sortOrder: number;
 }): Promise<ActionResult> {
-  await requireAdmin();
+  await requireStaff();
   const parsed = CategorySchema.extend({ id: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -95,14 +84,14 @@ export async function updateStrategyCategory(input: {
     )
     .eq("id", parsed.data.id);
   if (error) return { ok: false, error: toActionError(error) };
-  if (!count) return { ok: false, error: "Only an admin can edit categories." };
+  if (!count) return { ok: false, error: "Only Enforcer+ can edit categories." };
 
   revalidateStrategies();
   return { ok: true, message: "Category updated." };
 }
 
 export async function deleteStrategyCategory(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  await requireStaff();
   const parsed = uuid.safeParse(id);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -112,7 +101,7 @@ export async function deleteStrategyCategory(id: string): Promise<ActionResult> 
     .delete({ count: "exact" })
     .eq("id", parsed.data);
   if (error) return { ok: false, error: toActionError(error) };
-  if (!count) return { ok: false, error: "Only an admin can delete categories." };
+  if (!count) return { ok: false, error: "Only Enforcer+ can delete categories." };
 
   revalidateStrategies();
   return { ok: true, message: "Category removed (and its strategies)." };
@@ -122,18 +111,24 @@ export async function createStrategy(input: {
   categoryId: string;
   title: string;
   description?: string | null;
-  videoUrl?: string | null;
+  videoPath?: string | null;
 }): Promise<ActionResult> {
-  const { profile } = await requireAdmin();
+  const { profile } = await requireStaff();
   const parsed = StrategySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const videoPath = emptyToNull(parsed.data.videoPath);
+  if (videoPath && !videoPath.startsWith(`${profile.id}/`)) {
+    return { ok: false, error: "Video upload looks invalid. Attach the file again." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("strategies").insert({
     category_id: parsed.data.categoryId,
     title: parsed.data.title,
     description: emptyToNull(parsed.data.description),
-    video_url: emptyToNull(parsed.data.videoUrl),
+    video_path: videoPath,
+    video_url: null,
     created_by: profile.id,
     updated_by: profile.id,
   });
@@ -148,35 +143,54 @@ export async function updateStrategy(input: {
   categoryId: string;
   title: string;
   description?: string | null;
-  videoUrl?: string | null;
+  videoPath?: string | null;
+  clearVideo?: boolean;
 }): Promise<ActionResult> {
-  const { profile } = await requireAdmin();
+  const { profile } = await requireStaff();
   const parsed = StrategySchema.extend({ id: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const videoPath = emptyToNull(parsed.data.videoPath);
+  if (videoPath && !videoPath.startsWith(`${profile.id}/`)) {
+    return { ok: false, error: "Video upload looks invalid. Attach the file again." };
+  }
+
+  const patch: {
+    category_id: string;
+    title: string;
+    description: string | null;
+    updated_by: string;
+    video_path?: string | null;
+    video_url?: string | null;
+  } = {
+    category_id: parsed.data.categoryId,
+    title: parsed.data.title,
+    description: emptyToNull(parsed.data.description),
+    updated_by: profile.id,
+  };
+
+  if (videoPath) {
+    patch.video_path = videoPath;
+    patch.video_url = null;
+  } else if (parsed.data.clearVideo) {
+    patch.video_path = null;
+    patch.video_url = null;
+  }
 
   const supabase = await createClient();
   const { error, count } = await supabase
     .from("strategies")
-    .update(
-      {
-        category_id: parsed.data.categoryId,
-        title: parsed.data.title,
-        description: emptyToNull(parsed.data.description),
-        video_url: emptyToNull(parsed.data.videoUrl),
-        updated_by: profile.id,
-      },
-      { count: "exact" },
-    )
+    .update(patch, { count: "exact" })
     .eq("id", parsed.data.id);
   if (error) return { ok: false, error: toActionError(error) };
-  if (!count) return { ok: false, error: "Only an admin can edit strategies." };
+  if (!count) return { ok: false, error: "Only Enforcer+ can edit strategies." };
 
   revalidateStrategies();
   return { ok: true, message: "Strategy updated." };
 }
 
 export async function deleteStrategy(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  await requireStaff();
   const parsed = uuid.safeParse(id);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -186,7 +200,7 @@ export async function deleteStrategy(id: string): Promise<ActionResult> {
     .delete({ count: "exact" })
     .eq("id", parsed.data);
   if (error) return { ok: false, error: toActionError(error) };
-  if (!count) return { ok: false, error: "Only an admin can delete strategies." };
+  if (!count) return { ok: false, error: "Only Enforcer+ can delete strategies." };
 
   revalidateStrategies();
   return { ok: true, message: "Strategy deleted." };

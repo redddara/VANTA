@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/auth";
 import { STRATEGY_CATEGORY_SELECT, STRATEGY_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import {
-  isAdmin,
+  isStaff,
   type StrategyCategory,
   type StrategyWithCategory,
 } from "@/lib/types/app";
@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Strategies" };
 export default async function StrategiesPage() {
   const { profile } = await requireSession();
   const supabase = await createClient();
-  const canManage = isAdmin(profile.crew_rank);
+  const canManage = isStaff(profile.crew_rank);
 
   const [categoriesResult, strategiesResult] = await Promise.all([
     supabase
@@ -38,7 +38,7 @@ export default async function StrategiesPage() {
         title="Strategies"
         description={
           canManage
-            ? "Crew playbooks for blocks, chase switches, and more. You can add and edit entries."
+            ? "Crew playbooks for blocks, chase switches, and more. Enforcer+ can add, edit, and upload videos."
             : "Crew playbooks for blocks, chase switches, and more. Read-only for your rank."
         }
       />
@@ -46,6 +46,7 @@ export default async function StrategiesPage() {
         categories={categoriesResult.data ?? []}
         strategies={strategiesResult.data ?? []}
         canManage={canManage}
+        uploaderId={profile.id}
       />
     </>
   );

@@ -62,7 +62,7 @@ export const STRATEGY_CATEGORY_SELECT = `
 `;
 
 export const STRATEGY_SELECT = `
-  id, category_id, title, description, video_url,
+  id, category_id, title, description, video_url, video_path,
   created_by, updated_by, created_at, updated_at,
   category:strategy_categories!strategies_category_id_fkey(id, name, sort_order),
   creator:profiles!strategies_created_by_fkey(${PERSON}),

@@ -22,10 +22,12 @@ export function StrategiesBoard({
   categories,
   strategies,
   canManage,
+  uploaderId,
 }: {
   categories: StrategyCategory[];
   strategies: StrategyWithCategory[];
   canManage: boolean;
+  uploaderId: string;
 }) {
   const router = useRouter();
   const [editingStrategy, setEditingStrategy] = useState<Strategy | "new" | null>(
@@ -71,7 +73,7 @@ export function StrategiesBoard({
           description={
             canManage
               ? "Add a category, then add strategies under it."
-              : "Admins have not published any strategies yet."
+              : "Staff have not published any strategies yet."
           }
         />
       ) : (
@@ -155,7 +157,7 @@ export function StrategiesBoard({
                             No write-up yet.
                           </p>
                         )}
-                        <StrategyVideo url={entry.video_url} />
+                        <StrategyVideo path={entry.video_path} url={entry.video_url} />
                       </CardContent>
                     </Card>
                   ))}
@@ -173,6 +175,7 @@ export function StrategiesBoard({
             onOpenChange={(open) => !open && setEditingStrategy(null)}
             categories={categories}
             strategy={editingStrategy === "new" ? null : editingStrategy}
+            uploaderId={uploaderId}
           />
           <CategoryFormDialog
             open={editingCategory !== null}

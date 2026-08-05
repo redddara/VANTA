@@ -1,12 +1,85 @@
-import { ExternalLink } from "lucide-react";
+"use client";
 
+import { useEffect, useState } from "react";
+import { ExternalLink, Loader2 } from "lucide-react";
+
+import { STRATEGY_VIDEO_BUCKET } from "@/lib/strategy-video";
+import { createClient } from "@/lib/supabase/client";
 import { youtubeEmbedUrl } from "@/lib/youtube";
 
-export function StrategyVideo({ url }: { url: string | null | undefined }) {
+export function StrategyVideo({
+  path,
+  url,
+}: {
+  path?: string | null;
+  /** Legacy external URL (YouTube), if any. */
+  url?: string | null;
+}) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(path));
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!path) {
+      setSignedUrl(null);
+      setLoading(false);
+      setFailed(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+
+    const supabase = createClient();
+    void supabase.storage
+      .from(STRATEGY_VIDEO_BUCKET)
+      .createSignedUrl(path, 60 * 60)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (error || !data?.signedUrl) {
+          setFailed(true);
+          setSignedUrl(null);
+          return;
+        }
+        setSignedUrl(data.signedUrl);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  if (path) {
+    if (loading) {
+      return (
+        <div className="bg-muted flex aspect-video w-full items-center justify-center rounded-lg border">
+          <Loader2 className="text-muted-foreground size-5 animate-spin" />
+        </div>
+      );
+    }
+    if (failed || !signedUrl) {
+      return (
+        <p className="text-muted-foreground text-xs">Video could not be loaded.</p>
+      );
+    }
+    return (
+      <div className="overflow-hidden rounded-lg border bg-black">
+        <video
+          src={signedUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full"
+        />
+      </div>
+    );
+  }
+
   if (!url) return null;
 
   const embed = youtubeEmbedUrl(url);
-
   if (embed) {
     return (
       <div className="bg-background/60 aspect-video w-full overflow-hidden rounded-lg border">
