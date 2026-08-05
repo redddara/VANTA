@@ -1,0 +1,5 @@
+# Deploy from the hacking-practice folder (Git repo root).
+# Site URL opens the store & ammunation practice menu.
+
+[build]
+  publish = "store-and-ammunation"

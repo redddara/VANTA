@@ -1,0 +1,19 @@
+# Deploy this folder as the site root (drag-and-drop zip or Git repo root).
+
+[build]
+  publish = "."
+
+[[headers]]
+  for = "sounds/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

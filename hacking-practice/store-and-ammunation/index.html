@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Store &amp; Ammunation — Hacking Practice</title>
+
+  <link rel="stylesheet" href="css/practice.css">
+
+  <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body class="practice-site theme-classic">
+
+  <div id="launcher">
+
+    <header>
+
+      <h1>Store &amp; Ammunation Hacking Practice</h1>
+
+      <p>
+
+        Practice the exact minigames from the store robbery and ammunation robbery jobs.
+
+        Press <kbd>Esc</kbd> or Back to return to the menu.
+        After a round ends, press <kbd>Space</kbd> to retry.
+
+      </p>
+
+      <p class="thermite-link-box">
+
+        <strong>Thermite door:</strong>
+
+        <a href="thermite.html">Open thermite.html</a> (starts instantly, most reliable)
+
+      </p>
+
+    </header>
+
+    <div id="game-list"></div>
+
+  </div>
+
+
+
+  <div id="game-area" class="hidden">
+
+    <button type="button" id="back-btn">← Back to menu</button>
+
+    <div id="result-banner" class="result-banner"></div>
+
+
+
+    <div id="rhythm-container" class="game-container">
+
+      <div class="rhythm-display">
+
+        <div class="rhythm-highway"></div>
+
+        <div class="hit-zone"></div>
+
+        <div class="key-indicators"></div>
+
+      </div>
+
+      <div class="hack-info">
+
+        <div class="message"><span id="rhythm-message">Hit the keys right in time</span></div>
+
+      </div>
+
+      <div class="timer-container">
+
+        <div class="timer-bar">
+
+          <div class="rhythm-progress"></div>
+
+        </div>
+
+        <div class="timer-text" id="rhythm-timer-label">Progress: <span id="rhythm-progress">0</span>%</div>
+
+      </div>
+
+      <div class="key-help">
+
+        <div id="rhythm-key-hint">Press keys to match falling notes</div>
+
+      </div>
+
+    </div>
+
+
+
+    <div id="sequence-container" class="game-container">
+
+      <div class="sequence-display">
+
+        <div class="previous-keys"></div>
+
+        <div class="current-key"></div>
+
+        <div class="next-keys"></div>
+
+      </div>
+
+      <div class="hack-info">
+
+        <div class="counter">SEQUENCES: <span id="seq-counter">1</span>/<span id="seq-total">3</span></div>
+
+        <div class="message"><span id="seq-message">Input the sequence to break the encryption</span></div>
+
+      </div>
+
+      <div class="timer-container">
+
+        <div class="timer-bar">
+
+          <div class="seq-timer-progress"></div>
+
+        </div>
+
+        <div class="timer-text">Time: <span id="seq-timer-count">15.0</span>s</div>
+
+      </div>
+
+      <div class="sequence-progress"></div>
+
+      <div class="sequence-help">
+
+        <div>PRESS KEYS SHOWN IN SEQUENCE</div>
+
+        <div class="key-hint">W, A, S, D only</div>
+
+      </div>
+
+    </div>
+
+
+
+    <div id="numbered-sequence-container" class="game-container">
+
+      <div class="numbered-sequence-display">
+
+        <div class="numbered-sequence-splash">
+
+          <div class="numbered-sequence-icon">🔢</div>
+
+          <span class="numbered-sequence-text">PREPARING NUMBERED MATRIX...</span>
+
+        </div>
+
+        <div class="numbered-sequence-grid"></div>
+
+      </div>
+
+      <div class="hack-info">
+
+        <div class="counter">ROUND: <span id="numbered-sequence-round-current">1</span>/<span id="numbered-sequence-round-total">3</span></div>
+
+        <div class="message"><span id="numbered-sequence-message">Memorize the numbered sequence</span></div>
+
+      </div>
+
+      <div class="timer-container">
+
+        <div class="timer-bar">
+
+          <div class="numbered-sequence-timer-progress"></div>
+
+        </div>
+
+        <div class="timer-text">Time: <span id="numbered-sequence-timer">4.0</span>s</div>
+
+      </div>
+
+    </div>
+
+
+
+    <div id="pairs-container" class="game-container">
+
+      <div class="pairs-display">
+
+        <div id="pairs-grid"></div>
+
+      </div>
+
+      <div class="hack-info">
+
+        <div class="message"><span>Find all matching pairs. Click cards to flip them.</span></div>
+
+        <div class="pairs-stats">
+
+          <span class="pairs-pairs-info">Pairs: <span id="pairs-pairs">0 / 0</span></span>
+
+          <span class="pairs-attempts-info">Attempts: <span id="pairs-attempts">0</span></span>
+
+        </div>
+
+      </div>
+
+      <div class="timer-container pairs-timer-container">
+
+        <div class="timer-bar">
+
+          <div class="pairs-timer-progress"></div>
+
+        </div>
+
+        <div class="timer-text">Time: <span id="pairs-timer">30.0</span>s</div>
+
+      </div>
+
+    </div>
+
+
+
+    <div id="word-crack-container" class="game-container">
+
+      <div class="word-crack-display"></div>
+
+      <div class="timer-container word-crack-timer-container">
+
+        <div class="timer-bar">
+
+          <div class="word-crack-timer-progress"></div>
+
+        </div>
+
+        <div class="timer-text">Time: <span id="word-crack-timer">120.0</span>s</div>
+
+      </div>
+
+    </div>
+
+
+
+    <div id="symbol-search-container" class="game-container">
+
+      <div class="symbol-search-display">
+
+        <div class="symbol-search-splash">
+
+          <div class="symbol-search-icon">🔍</div>
+
+          <span class="symbol-search-text">INITIALIZING SCANNER...</span>
+
+        </div>
+
+        <div class="symbol-search-target-display">
+
+          <span class="symbol-search-target-label">FIND TARGET:</span>
+
+          <span id="symbol-search-target">◆</span>
+
+        </div>
+
+        <div class="symbol-search-grid"></div>
+
+      </div>
+
+      <div class="hack-info">
+
+        <div class="message"><span id="symbol-search-message">Find the START of the target sequence</span></div>
+
+      </div>
+
+      <div class="timer-container">
+
+        <div class="timer-bar">
+
+          <div class="symbol-search-timer-progress"></div>
+
+        </div>
+
+        <div class="timer-text">Time: <span id="symbol-search-timer">30.0</span>s</div>
+
+      </div>
+
+      <div class="symbol-search-controls">
+
+        <span><span class="key">W A S D</span> / <span class="key">↑ ↓ ← →</span> Move</span>
+
+        <span><span class="key">ENTER</span> / <span class="key">SPACE</span> Select</span>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <div id="custom-settings-overlay" class="custom-settings-overlay hidden" aria-hidden="true">
+
+    <div class="custom-settings-panel" role="dialog" aria-modal="true">
+
+      <h2 id="custom-settings-title">Customize</h2>
+
+      <form id="custom-settings-form"></form>
+
+      <div class="custom-settings-actions">
+
+        <button type="button" id="custom-settings-cancel">Cancel</button>
+
+        <button type="submit" form="custom-settings-form" id="custom-settings-start">Start</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="audio-elements" style="display: none;">
+    <audio id="sound-click" preload="auto" src="sounds/click.mp3"></audio>
+    <audio id="sound-success" preload="auto" src="sounds/success.mp3"></audio>
+    <audio id="sound-failure" preload="auto" src="sounds/failure.mp3"></audio>
+    <audio id="sound-penalty" preload="auto" src="sounds/penalty.mp3"></audio>
+    <audio id="sound-buttonPress" preload="auto" src="sounds/buttonPress.mp3"></audio>
+  </div>
+
+
+
+  <!-- Scripts at end of body so DOM exists before practice.js runs -->
+
+  <script src="js/practice-bridge.js"></script>
+
+  <script src="js/theme-config.js"></script>
+
+  <script src="js/apply-theme.js"></script>
+
+  <script src="js/asset-base.js"></script>
+
+  <script src="js/sounds.js"></script>
+
+  <script src="js/storeComputerWords.js"></script>
+
+  <script src="js/config.js"></script>
+
+  <script src="js/jquery-3.6.0.min.js"></script>
+
+  <script src="js/rhythm.js"></script>
+
+  <script src="js/app-practice.js"></script>
+
+  <script src="js/wordCrack.js"></script>
+
+  <script src="js/pairs.js"></script>
+
+  <script src="js/numberedSequence.js"></script>
+
+  <script src="js/symbolSearch.js"></script>
+
+  <script src="js/backdoorSequence.js"></script>
+
+  <script src="js/practice.js"></script>
+
+</body>
+
+</html>
+
+

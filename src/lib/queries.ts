@@ -9,12 +9,12 @@
 const PERSON = "id, ingame_name, discord_username, discord_avatar_url";
 
 export const REMIT_TYPE_SELECT = `
-  id, name, is_weekly_quota, quota_amount, created_at
+  id, name, is_weekly_quota, quota_amount, inventory_item_id, created_at
 `;
 
 export const REMIT_SELECT = `
-  id, member_id, remit_type_id, quantity, amount, description, status,
-  created_at, submitted_by, reviewed_by, week_start,
+  id, member_id, remit_type_id, quantity, amount, description, proof_path, status,
+  created_at, submitted_by, reviewed_by, week_start, target_week_start, is_advance,
   remit_type:remit_types!remit_logs_remit_type_id_fkey(id, name, is_weekly_quota),
   member:profiles!remit_logs_member_id_fkey(${PERSON}),
   submitter:profiles!remit_logs_submitted_by_fkey(${PERSON}),
@@ -38,4 +38,21 @@ export const WEEKLY_COMPLIANCE_SELECT = `
   member_id, discord_username, discord_avatar_url, ingame_name, crew_rank,
   is_active, week_start, quota_type_id, quota_type_name, quota_amount,
   approved_quantity, quota_met
+`;
+
+export const INVENTORY_ITEM_SELECT = `
+  id, name, is_active, created_at
+`;
+
+export const INVENTORY_STOCK_SELECT = `
+  item_id, item_name, is_active, created_at,
+  inbound_total, outbound_total, on_hand
+`;
+
+export const INVENTORY_MOVEMENT_SELECT = `
+  id, item_id, direction, quantity, note, member_id, created_by, created_at,
+  remit_log_id,
+  item:inventory_items!inventory_movements_item_id_fkey(id, name, is_active),
+  member:profiles!inventory_movements_member_id_fkey(${PERSON}),
+  logger:profiles!inventory_movements_created_by_fkey(${PERSON})
 `;

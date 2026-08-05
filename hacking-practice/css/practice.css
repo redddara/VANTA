@@ -1,0 +1,248 @@
+:root {
+  --practice-bg: #0f1419;
+  --practice-card: #1a2332;
+  --practice-border: #2d3a4d;
+  --practice-accent: #2dd4a8;
+  --practice-text: #e8edf4;
+  --practice-muted: #8b9cb3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body.practice-site {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--practice-bg) !important;
+  color: var(--practice-text);
+  display: block !important;
+  overflow: auto !important;
+  height: auto !important;
+}
+
+body.practice-site {
+  background: #0f1419 !important;
+}
+
+body.game-active {
+  background: #111;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#launcher {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  color: var(--practice-accent);
+}
+
+header p {
+  margin: 0 0 2rem;
+  color: var(--practice-muted);
+  line-height: 1.5;
+}
+
+.thermite-link-box {
+  margin: 0 0 1.5rem !important;
+  padding: 0.75rem 1rem;
+  background: #1a2332;
+  border: 1px solid #2dd4a8;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.thermite-link-box a {
+  color: #2dd4a8;
+}
+
+section h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--practice-muted);
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--practice-border);
+  border-radius: 10px;
+  background: var(--practice-card);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.game-card:hover {
+  border-color: var(--practice-accent);
+  transform: translateY(-2px);
+}
+
+.game-card strong {
+  font-size: 1rem;
+}
+
+.game-card span {
+  font-size: 0.85rem;
+  color: var(--practice-muted);
+  line-height: 1.4;
+}
+
+#game-area {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4rem 1rem 2rem;
+  box-sizing: border-box;
+}
+
+#game-area:not(.hidden) #thermite-game.is-active {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#back-btn {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10000;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--practice-border);
+  border-radius: 8px;
+  background: rgba(15, 20, 25, 0.92);
+  color: var(--practice-text);
+  cursor: pointer;
+}
+
+#back-btn:hover {
+  border-color: var(--practice-accent);
+}
+
+.result-banner {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.result-banner.visible {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.result-banner.success {
+  background: rgba(45, 212, 168, 0.15);
+  border: 1px solid #2dd4a8;
+  color: #2dd4a8;
+}
+
+.result-banner.failure {
+  background: rgba(255, 68, 68, 0.15);
+  border: 1px solid #ff4444;
+  color: #ff6b6b;
+}
+
+/* Override glitch-minigames transparent NUI styles in browser practice */
+body.practice-site .game-container.active,
+body.game-active .game-container.active {
+  background: linear-gradient(135deg, #0f1e2d 0%, #1e3c5a 100%) !important;
+  border: 1px solid rgba(45, 212, 168, 0.45) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55) !important;
+}
+
+#rhythm-container.active,
+#numbered-sequence-container.active,
+#pairs-container.active,
+#word-crack-container.active {
+  position: relative;
+  z-index: 2;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 auto;
+}
+
+#rhythm-container.active {
+  width: min(92vw, 720px);
+  min-height: 520px;
+}
+
+#rhythm-container.active .rhythm-display {
+  background: rgba(0, 0, 0, 0.55) !important;
+  border: 1px solid rgba(45, 212, 168, 0.35);
+}
+
+#rhythm-container.active .rhythm-lane {
+  background: rgba(0, 35, 70, 0.92) !important;
+  border-color: rgba(45, 212, 168, 0.25) !important;
+}
+
+#rhythm-container.active .rhythm-note {
+  background: linear-gradient(to bottom, #5eecc8, #2dd4a8) !important;
+  box-shadow: 0 0 12px rgba(45, 212, 168, 0.8) !important;
+}
+
+#rhythm-container.active .hit-zone {
+  background: linear-gradient(to right, transparent, #2dd4a8, transparent) !important;
+  height: 6px !important;
+  box-shadow: 0 0 18px rgba(45, 212, 168, 0.9) !important;
+}
+
+#rhythm-container.active .key-indicator {
+  background: rgba(0, 55, 90, 0.95) !important;
+  border: 2px solid #2dd4a8 !important;
+  color: #fff !important;
+}
+
+#rhythm-container.active .hack-info,
+#rhythm-container.active .timer-container,
+#rhythm-container.active .key-help,
+#rhythm-container.active .timer-text,
+#rhythm-container.active #rhythm-message,
+#rhythm-container.active #rhythm-key-hint {
+  color: #e8edf4 !important;
+}
+
+#numbered-sequence-container.active {
+  width: min(92vw, 680px);
+}
+
+#numbered-sequence-container.active .numbered-sequence-display {
+  min-height: 480px;
+  height: auto;
+  padding: 12px;
+}

@@ -34,6 +34,18 @@ const SubmitRemitSchema = z.object({
   quantity,
   amount,
   description,
+  proofPath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500, "Proof path is too long.")
+    .optional()
+    .nullable(),
+  targetWeekStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid week.")
+    .optional()
+    .nullable(),
 });
 
 const EditRemitSchema = z.object({
@@ -58,6 +70,7 @@ const RemitTypeSchema = z.object({
     .positive()
     .optional()
     .nullable(),
+  inventoryItemId: uuid.optional().nullable(),
 });
 
 function revalidateRemit() {
@@ -66,6 +79,8 @@ function revalidateRemit() {
   revalidatePath("/remit/mine");
   revalidatePath("/remit/new");
   revalidatePath("/remit/compliance");
+  revalidatePath("/remit/tracker");
+  revalidatePath("/inventory");
   revalidatePath("/admin/remit");
   revalidatePath("/admin/remit-types");
   revalidatePath("/admin/audit");
@@ -82,6 +97,8 @@ export async function submitRemit(input: {
   quantity: number;
   amount?: number | null;
   description?: string;
+  proofPath?: string | null;
+  targetWeekStart?: string | null;
 }): Promise<ActionResult> {
   const parsed = SubmitRemitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -89,19 +106,63 @@ export async function submitRemit(input: {
   const { profile } = await requireSession();
   const supabase = await createClient();
 
+  const proofPath = parsed.data.proofPath?.trim() || null;
+  if (proofPath && !proofPath.startsWith(`${profile.id}/`)) {
+    return { ok: false, error: "Proof upload looks invalid. Attach the image again." };
+  }
+
   const { error } = await supabase.from("remit_logs").insert({
     member_id: parsed.data.memberId,
     remit_type_id: parsed.data.remitTypeId,
     quantity: parsed.data.quantity,
     amount: optionalAmount(parsed.data.amount),
     description: parsed.data.description || null,
+    proof_path: proofPath,
     submitted_by: profile.id,
+    target_week_start: parsed.data.targetWeekStart || null,
   });
 
   if (error) return { ok: false, error: toActionError(error) };
 
   revalidateRemit();
-  return { ok: true, message: "Remit logged and waiting on an admin." };
+  return {
+    ok: true,
+    message: parsed.data.targetWeekStart
+      ? "Advance remit logged and waiting on an admin."
+      : "Remit logged and waiting on an admin.",
+  };
+}
+
+export async function retargetRemitWeek(input: {
+  id: string;
+  targetWeekStart: string;
+}): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      id: uuid,
+      targetWeekStart: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid week."),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("remit_logs")
+    .update(
+      { target_week_start: parsed.data.targetWeekStart },
+      { count: "exact" },
+    )
+    .eq("id", parsed.data.id);
+
+  if (error) return { ok: false, error: toActionError(error) };
+  if (!count) {
+    return { ok: false, error: "Only an admin can move a remit to another week." };
+  }
+
+  revalidateRemit();
+  return { ok: true, message: "Remit moved to the selected week." };
 }
 
 export async function reviewRemit(input: {
@@ -197,6 +258,7 @@ export async function createRemitType(input: {
   name: string;
   isWeeklyQuota: boolean;
   quotaAmount?: number | null;
+  inventoryItemId?: string | null;
 }): Promise<ActionResult> {
   const parsed = RemitTypeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -206,10 +268,35 @@ export async function createRemitType(input: {
   }
 
   const supabase = await createClient();
+
+  let inventoryItemId = parsed.data.inventoryItemId || null;
+
+  // Default: same-named stash item so approvals always feed inventory.
+  if (!inventoryItemId) {
+    const { data: existing } = await supabase
+      .from("inventory_items")
+      .select("id")
+      .eq("name", parsed.data.name)
+      .maybeSingle();
+
+    if (existing?.id) {
+      inventoryItemId = existing.id;
+    } else {
+      const { data: created, error: itemError } = await supabase
+        .from("inventory_items")
+        .insert({ name: parsed.data.name })
+        .select("id")
+        .single();
+      if (itemError) return { ok: false, error: toActionError(itemError) };
+      inventoryItemId = created.id;
+    }
+  }
+
   const { error } = await supabase.from("remit_types").insert({
     name: parsed.data.name,
     is_weekly_quota: parsed.data.isWeeklyQuota,
     quota_amount: parsed.data.isWeeklyQuota ? parsed.data.quotaAmount : null,
+    inventory_item_id: inventoryItemId,
   });
 
   if (error) {
@@ -228,6 +315,7 @@ export async function updateRemitType(input: {
   name: string;
   isWeeklyQuota: boolean;
   quotaAmount?: number | null;
+  inventoryItemId?: string | null;
 }): Promise<ActionResult> {
   const parsed = RemitTypeSchema.extend({ id: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -244,6 +332,7 @@ export async function updateRemitType(input: {
         name: parsed.data.name,
         is_weekly_quota: parsed.data.isWeeklyQuota,
         quota_amount: parsed.data.isWeeklyQuota ? parsed.data.quotaAmount : null,
+        inventory_item_id: parsed.data.inventoryItemId || null,
       },
       { count: "exact" },
     )

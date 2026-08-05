@@ -1,4 +1,4 @@
-import { RANKS, REP_BANDS, REMIT_STATUSES } from "@/lib/constants";
+import { RANKS, REP_BANDS, REMIT_STATUSES, INVENTORY_DIRECTIONS } from "@/lib/constants";
 import type { Tables } from "@/lib/types/database.types";
 
 /**
@@ -8,6 +8,7 @@ import type { Tables } from "@/lib/types/database.types";
 export type Rank = (typeof RANKS)[number];
 export type RepBand = (typeof REP_BANDS)[number];
 export type RemitStatus = (typeof REMIT_STATUSES)[number];
+export type InventoryDirection = (typeof INVENTORY_DIRECTIONS)[number];
 
 export type Profile = Omit<Tables<"profiles">, "crew_rank"> & { crew_rank: Rank };
 
@@ -15,6 +16,8 @@ export type RemitType = Tables<"remit_types">;
 
 export type RemitLog = Omit<Tables<"remit_logs">, "status"> & {
   status: RemitStatus;
+  is_advance?: boolean;
+  target_week_start?: string | null;
 };
 
 export type RemitLogWithType = RemitLog & {
@@ -22,6 +25,22 @@ export type RemitLogWithType = RemitLog & {
 };
 
 export type MemberRep = Tables<"member_rep">;
+
+export type InventoryItem = Tables<"inventory_items">;
+
+export type InventoryStock = {
+  item_id: string;
+  item_name: string;
+  is_active: boolean;
+  created_at: string;
+  inbound_total: number;
+  outbound_total: number;
+  on_hand: number;
+};
+
+export type InventoryMovement = Omit<Tables<"inventory_movements">, "direction"> & {
+  direction: InventoryDirection;
+};
 
 export type WeeklyCompliance = {
   member_id: string;
@@ -98,6 +117,12 @@ export type RemitLogWithPeople = RemitLogWithType & {
   reviewer: ProfileRef | null;
 };
 
+export type InventoryMovementWithPeople = InventoryMovement & {
+  item: Pick<InventoryItem, "id" | "name" | "is_active"> | null;
+  member: ProfileRef | null;
+  logger: ProfileRef | null;
+};
+
 export type AuditLogEntryWithActor = AuditLogEntry & {
   actor: ProfileRef | null;
 };
@@ -127,7 +152,7 @@ export function isAdmin(rank: string | null): boolean {
   return rankWeight(rank) >= 4;
 }
 
-/** Enforcer and up: may submit remit for others and set reputation tiers. */
+/** Enforcer and up: may submit remit for others, set reputation, and manage inventory. */
 export function isStaff(rank: string | null): boolean {
   return rankWeight(rank) >= 2;
 }

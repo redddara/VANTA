@@ -116,6 +116,43 @@ async function bootstrapSupabaseEnvironment() {
     grant usage on schema public to anon, authenticated, service_role;
     grant usage on schema auth to anon, authenticated, service_role;
     grant execute on function auth.uid() to anon, authenticated, service_role;
+
+    -- Minimal Storage stubs so remit-proof migrations can run under PGlite.
+    create schema if not exists storage;
+
+    create table if not exists storage.buckets (
+      id text primary key,
+      name text not null,
+      public boolean not null default false,
+      file_size_limit bigint,
+      allowed_mime_types text[]
+    );
+
+    create table if not exists storage.objects (
+      id uuid primary key default gen_random_uuid(),
+      bucket_id text references storage.buckets (id),
+      name text not null,
+      owner uuid,
+      created_at timestamptz default now(),
+      updated_at timestamptz default now(),
+      last_accessed_at timestamptz default now(),
+      metadata jsonb
+    );
+
+    create or replace function storage.foldername(name text)
+    returns text[]
+    language sql
+    immutable
+    as $$
+      select string_to_array(name, '/');
+    $$;
+
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to anon, authenticated, service_role;
+    grant select on storage.buckets to anon, authenticated, service_role;
+    grant insert, select, update, delete on storage.objects to authenticated, service_role;
+    grant insert on storage.buckets to postgres, service_role;
+    grant all on storage.buckets to service_role;
   `);
 }
 
@@ -413,16 +450,27 @@ async function main() {
   });
 
   let remitId;
-  await check("a Captain can submit remit for another member", async () => {
+  await check("a Captain can submit remit with screenshot proof", async () => {
+    const path = `${captainId}/proof-demo.png`;
     const { rows } = await as(
       captainId,
-      `insert into public.remit_logs (member_id, remit_type_id, quantity, amount, description, submitted_by)
-       values ($1, $2, 2, 5000, 'warehouse job', $3)
-       returning id, status;`,
-      [operatorId, launderingType.id, captainId],
+      `insert into public.remit_logs (
+         member_id, remit_type_id, quantity, amount, description, submitted_by, proof_path
+       ) values ($1, $2, 2, 5000, 'warehouse job', $3, $4)
+       returning id, status, proof_path;`,
+      [operatorId, launderingType.id, captainId, path],
     );
     remitId = rows[0].id;
     assert(rows[0].status === "pending", "new remit should start pending");
+    assert(rows[0].proof_path === path, "proof_path did not stick");
+  });
+
+  await check("the remit-proofs storage bucket exists", async () => {
+    const { rows } = await asSystem(
+      "select id, public from storage.buckets where id = 'remit-proofs';",
+    );
+    assert(rows.length === 1, "bucket missing");
+    assert(rows[0].public === false, "bucket should be private");
   });
 
   await denied(
@@ -833,6 +881,263 @@ async function main() {
   await check("a deactivated member keeps their summary row", async () => {
     const { rows } = await asSystem("select id from public.member_summary where id = $1;", [captainId]);
     assert(rows.length === 1, "the deactivated member vanished from the summary");
+  });
+
+  console.log("\ninventory inbound / outbound");
+
+  let inventoryItemId;
+  await check("an Underboss can create an inventory item", async () => {
+    const { rows } = await as(
+      underbossId,
+      `insert into public.inventory_items (name) values ('Lockpicks') returning id, name;`,
+    );
+    assert(rows.length === 1, "inventory item was not created");
+    inventoryItemId = rows[0].id;
+  });
+
+  await denied(
+    "a Captain cannot create inventory items",
+    () => as(captainId, "insert into public.inventory_items (name) values ('Fake Gear');"),
+    "row-level security",
+  );
+
+  await check("a Prospect cannot see inventory stock", async () => {
+    const { rows } = await as(prospectId, "select item_id from public.inventory_stock;");
+    assert(rows.length === 0, "Prospect saw inventory stock");
+  });
+
+  await check("staff can read inventory stock", async () => {
+    // Reactivate captain for the rest of inventory checks.
+    await as(kingpinId, "update public.profiles set is_active = true where id = $1;", [captainId]);
+    const { rows } = await as(captainId, "select item_id, on_hand from public.inventory_stock;");
+    assert(rows.length >= 1, "Captain saw no inventory stock rows");
+  });
+
+  await check("a Captain can log inbound stock", async () => {
+    await as(
+      captainId,
+      `insert into public.inventory_movements (item_id, direction, quantity, note, created_by)
+       values ($1, 'inbound', 10, 'stash drop', $2);`,
+      [inventoryItemId, captainId],
+    );
+    const { rows } = await as(
+      captainId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [inventoryItemId],
+    );
+    assert(Number(rows[0].on_hand) === 10, `expected on hand 10, got ${rows[0].on_hand}`);
+  });
+
+  await check("outbound cannot exceed on-hand stock", async () => {
+    let blocked = false;
+    try {
+      await as(
+        captainId,
+        `insert into public.inventory_movements (item_id, direction, quantity, created_by)
+         values ($1, 'outbound', 11, $2);`,
+        [inventoryItemId, captainId],
+      );
+    } catch (error) {
+      blocked = String(error.message).includes("Not enough stock");
+    }
+    assert(blocked, "overdraw outbound was allowed");
+  });
+
+  await check("a Captain can log outbound within stock", async () => {
+    await as(
+      captainId,
+      `insert into public.inventory_movements (item_id, direction, quantity, member_id, created_by)
+       values ($1, 'outbound', 3, $2, $3);`,
+      [inventoryItemId, operatorId, captainId],
+    );
+    const { rows } = await as(
+      captainId,
+      "select on_hand, inbound_total, outbound_total from public.inventory_stock where item_id = $1;",
+      [inventoryItemId],
+    );
+    assert(Number(rows[0].on_hand) === 7, `expected on hand 7, got ${rows[0].on_hand}`);
+    assert(Number(rows[0].inbound_total) === 10, "inbound total wrong");
+    assert(Number(rows[0].outbound_total) === 3, "outbound total wrong");
+  });
+
+  await check("inventory inbound and outbound are audited", async () => {
+    const { rows } = await asSystem(
+      "select action, actor_id, detail from public.audit_log where action in ('inventory.inbound', 'inventory.outbound') order by created_at;",
+    );
+    assert(rows.some((r) => r.action === "inventory.inbound" && r.actor_id === captainId), "inbound not audited");
+    assert(rows.some((r) => r.action === "inventory.outbound" && r.detail.member), "outbound missing issued-to member");
+  });
+
+  await check("a Captain cannot void inventory movements", async () => {
+    const { rows } = await asSystem(
+      "select id from public.inventory_movements where item_id = $1 limit 1;",
+      [inventoryItemId],
+    );
+    const result = await as(
+      captainId,
+      "delete from public.inventory_movements where id = $1;",
+      [rows[0].id],
+    );
+    assert(result.affectedRows === 0, "a Captain managed to void an inventory movement");
+  });
+
+  await check("approving a linked remit adds inventory inbound", async () => {
+    // Link Chopmats Aluminum remit type to its inventory item (seeded by name).
+    const linked = await asSystem(
+      `select t.id as type_id, t.inventory_item_id, i.name
+       from public.remit_types t
+       join public.inventory_items i on i.id = t.inventory_item_id
+       where t.name = 'Chopmats — Aluminum';`,
+    );
+    assert(linked.rows.length === 1, "Chopmats Aluminum should be linked to inventory");
+    const typeId = linked.rows[0].type_id;
+    const itemId = linked.rows[0].inventory_item_id;
+
+    const before = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [itemId],
+    );
+    const prior = Number(before.rows[0]?.on_hand ?? 0);
+
+    const { rows: created } = await as(
+      captainId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 4, $3) returning id;`,
+      [operatorId, typeId, captainId],
+    );
+    const remitIdLinked = created[0].id;
+
+    await as(underbossId, "update public.remit_logs set status = 'approved' where id = $1;", [
+      remitIdLinked,
+    ]);
+
+    const after = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [itemId],
+    );
+    assert(
+      Number(after.rows[0].on_hand) === prior + 4,
+      `expected on hand ${prior + 4}, got ${after.rows[0].on_hand}`,
+    );
+
+    const movement = await asSystem(
+      "select direction, quantity, remit_log_id from public.inventory_movements where remit_log_id = $1;",
+      [remitIdLinked],
+    );
+    assert(movement.rows.length === 1, "approved remit did not create an inventory movement");
+    assert(movement.rows[0].direction === "inbound", "movement should be inbound");
+    assert(Number(movement.rows[0].quantity) === 4, "movement quantity wrong");
+
+    // Rejecting pulls the stock back out.
+    await as(underbossId, "update public.remit_logs set status = 'rejected' where id = $1;", [
+      remitIdLinked,
+    ]);
+    const reverted = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [itemId],
+    );
+    assert(
+      Number(reverted.rows[0].on_hand) === prior,
+      "rejecting an approved remit did not reverse inventory",
+    );
+  });
+
+  await check("approving laundering remit adds inventory inbound", async () => {
+    const linked = await asSystem(
+      `select t.id as type_id, t.inventory_item_id
+       from public.remit_types t
+       where t.name = 'Laundering Contract';`,
+    );
+    assert(linked.rows.length === 1, "Laundering Contract remit type missing");
+    assert(linked.rows[0].inventory_item_id, "Laundering Contract should be linked to inventory");
+
+    const itemId = linked.rows[0].inventory_item_id;
+    const before = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [itemId],
+    );
+    const prior = Number(before.rows[0]?.on_hand ?? 0);
+
+    const { rows: created } = await as(
+      captainId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 1, $3) returning id;`,
+      [operatorId, launderingType.id, captainId],
+    );
+    await as(underbossId, "update public.remit_logs set status = 'approved' where id = $1;", [
+      created[0].id,
+    ]);
+
+    const after = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [itemId],
+    );
+    assert(
+      Number(after.rows[0].on_hand) === prior + 1,
+      `expected laundering on hand ${prior + 1}, got ${after.rows[0].on_hand}`,
+    );
+
+    const movement = await asSystem(
+      "select direction, quantity from public.inventory_movements where remit_log_id = $1;",
+      [created[0].id],
+    );
+    assert(movement.rows.length === 1, "laundering approve should create inventory inbound");
+    assert(movement.rows[0].direction === "inbound", "should be inbound");
+  });
+
+  console.log("\nremit tracker / advance");
+
+  function asDate(value) {
+    if (value instanceof Date) {
+      const y = value.getUTCFullYear();
+      const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(value.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return String(value).slice(0, 10);
+  }
+
+  await check("advance remit stamps a future week_start", async () => {
+    const current = asDate(
+      (await asSystem("select public.vanta_current_week_start() as week;")).rows[0].week,
+    );
+    const future = asDate(
+      (
+        await asSystem("select (public.vanta_current_week_start() + 7)::date as week;")
+      ).rows[0].week,
+    );
+
+    const { rows } = await as(
+      captainId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by, target_week_start)
+       values ($1, $2, 1, $3, $4::date)
+       returning id, week_start, is_advance, target_week_start;`,
+      [operatorId, launderingType.id, captainId, future],
+    );
+    assert(asDate(rows[0].week_start) === future, `expected week ${future}, got ${rows[0].week_start}`);
+    assert(rows[0].is_advance === true, "advance flag should be true");
+    assert(asDate(rows[0].target_week_start) === future, "target week not stored");
+    assert(asDate(rows[0].week_start) !== current, "advance remitted into the current week");
+  });
+
+  await check("historical compliance RPC returns the requested week", async () => {
+    const future = asDate(
+      (
+        await asSystem("select (public.vanta_current_week_start() + 7)::date as week;")
+      ).rows[0].week,
+    );
+    const { rows } = await as(
+      captainId,
+      "select week_start, member_id from public.vanta_member_week_compliance($1::date) where member_id = $2 limit 1;",
+      [future, operatorId],
+    );
+    assert(rows.length === 1, "compliance RPC returned no rows");
+    assert(asDate(rows[0].week_start) === future, "compliance RPC used the wrong week");
   });
 
   console.log(

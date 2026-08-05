@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { RemitEditDialog } from "@/components/admin/remit-edit-dialog";
+import { RemitProofThumb } from "@/components/remit/remit-proof";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
@@ -146,6 +147,7 @@ export function RemitQueue({
               <TableRow>
                 <TableHead>Member</TableHead>
                 <TableHead>Item</TableHead>
+                <TableHead className="w-14">Proof</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Cash</TableHead>
                 <TableHead className="hidden lg:table-cell">Note</TableHead>
                 <TableHead className="hidden md:table-cell">Submitted by</TableHead>
@@ -181,6 +183,14 @@ export function RemitQueue({
                           {formatMoney(entry.amount)}
                         </p>
                       ) : null}
+                    </TableCell>
+
+                    <TableCell>
+                      {entry.proof_path ? (
+                        <RemitProofThumb path={entry.proof_path} />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell className="tabular text-muted-foreground hidden text-right md:table-cell">

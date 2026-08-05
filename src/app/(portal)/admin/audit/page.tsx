@@ -2,31 +2,38 @@ import type { Metadata } from "next";
 
 import { AuditTable } from "@/components/admin/audit-table";
 import { PageHeader } from "@/components/shared/page-header";
+import { fetchAuditPage } from "@/lib/actions/audit";
 import { requireAdmin } from "@/lib/auth";
-import { AUDIT_SELECT } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/server";
-import type { AuditLogEntryWithActor } from "@/lib/types/app";
 
 export const metadata: Metadata = { title: "Audit log" };
 
-export default async function AdminAuditPage() {
-  await requireAdmin();
-  const supabase = await createClient();
+type SearchParams = Promise<{ action?: string }>;
 
-  const { data } = await supabase
-    .from("audit_log")
-    .select(AUDIT_SELECT)
-    .order("created_at", { ascending: false })
-    .limit(300)
-    .returns<AuditLogEntryWithActor[]>();
+export default async function AdminAuditPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  await requireAdmin();
+  const params = await searchParams;
+  const action = params.action?.trim() || "all";
+
+  const page = await fetchAuditPage({
+    action: action === "all" ? null : action,
+    before: null,
+  });
 
   return (
     <>
       <PageHeader
         title="Audit Log"
-        description="Written by database triggers, not by the app. Entries cannot be edited or deleted by anyone, including admins."
+        description="Append-only history written by database triggers. Load older pages as needed — entries cannot be edited or deleted."
       />
-      <AuditTable entries={data ?? []} />
+      <AuditTable
+        initialEntries={page.entries}
+        initialCursor={page.nextCursor}
+        initialAction={action}
+      />
     </>
   );
 }

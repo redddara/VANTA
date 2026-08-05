@@ -1,12 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowRight, ScrollText, Search } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRight, Loader2, ScrollText, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,16 +24,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { displayName } from "@/lib/display";
+import { fetchAuditPage } from "@/lib/actions/audit";
 import {
+  AUDIT_ACTION_FILTERS,
   describeAction,
   extractChanges,
   extractDeleted,
+  extractInventorySummary,
   extractRemitReviewSummary,
   extractSubject,
   fieldLabel,
   type AuditTone,
 } from "@/lib/audit";
+import { displayName } from "@/lib/display";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import type { AuditLogEntryWithActor } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
@@ -40,6 +52,8 @@ function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
   const changes = extractChanges(entry.detail);
   const deleted = extractDeleted(entry.detail);
   const remitSummary = extractRemitReviewSummary(entry.detail);
+  const inventorySummary = extractInventorySummary(entry.detail);
+  const snapshot = remitSummary ?? inventorySummary;
 
   if (deleted) {
     const summary = Object.entries(deleted)
@@ -52,14 +66,14 @@ function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
     );
   }
 
-  if (changes.length === 0 && !remitSummary) {
+  if (changes.length === 0 && !snapshot) {
     return <span className="text-muted-foreground text-xs">{"\u2014"}</span>;
   }
 
   return (
     <div className="space-y-1.5">
-      {remitSummary ? (
-        <p className="text-foreground text-xs font-medium">{remitSummary}</p>
+      {snapshot ? (
+        <p className="text-foreground text-xs font-medium">{snapshot}</p>
       ) : null}
       {changes.length > 0 ? (
         <ul className="space-y-1">
@@ -82,66 +96,105 @@ function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
   );
 }
 
-export function AuditTable({ entries }: { entries: AuditLogEntryWithActor[] }) {
+export function AuditTable({
+  initialEntries,
+  initialCursor,
+  initialAction = "all",
+}: {
+  initialEntries: AuditLogEntryWithActor[];
+  initialCursor: string | null;
+  initialAction?: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
-  const [action, setAction] = useState<string>("all");
+  const [action, setAction] = useState(initialAction);
+  const [entries, setEntries] = useState(initialEntries);
+  const [nextCursor, setNextCursor] = useState(initialCursor);
+  const [pending, startTransition] = useTransition();
 
-  const actions = useMemo(() => {
-    const unique = new Set(entries.map((entry) => entry.action));
-    return ["all", ...Array.from(unique).sort()];
-  }, [entries]);
+  useEffect(() => {
+    setEntries(initialEntries);
+    setNextCursor(initialCursor);
+    setAction(initialAction);
+  }, [initialEntries, initialCursor, initialAction]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    if (!needle) return entries;
 
-    return entries
-      .filter((entry) => (action === "all" ? true : entry.action === action))
-      .filter((entry) => {
-        if (!needle) return true;
-        const haystack = [
-          entry.actor ? displayName(entry.actor) : "",
-          extractSubject(entry.detail) ?? "",
-          entry.action,
-          describeAction(entry.action).label,
-          JSON.stringify(entry.detail ?? {}),
-        ].join(" ");
-        return haystack.toLowerCase().includes(needle);
+    return entries.filter((entry) => {
+      const haystack = [
+        entry.actor ? displayName(entry.actor) : "",
+        extractSubject(entry.detail) ?? "",
+        entry.action,
+        describeAction(entry.action).label,
+        JSON.stringify(entry.detail ?? {}),
+      ].join(" ");
+      return haystack.toLowerCase().includes(needle);
+    });
+  }, [entries, query]);
+
+  function onActionChange(next: string) {
+    setAction(next);
+    setQuery("");
+    const params = new URLSearchParams();
+    if (next !== "all") params.set("action", next);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function loadOlder() {
+    if (!nextCursor || pending) return;
+
+    startTransition(async () => {
+      const page = await fetchAuditPage({
+        action: action === "all" ? null : action,
+        before: nextCursor,
       });
-  }, [entries, query, action]);
+      setEntries((prev) => {
+        const seen = new Set(prev.map((e) => e.id));
+        return [...prev, ...page.entries.filter((e) => !seen.has(e.id))];
+      });
+      setNextCursor(page.nextCursor);
+    });
+  }
 
   return (
     <>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative max-w-sm flex-1">
-          <Search className="text-muted-foreground/70 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search actor, member or value"
-            aria-label="Search the audit log"
-            className="pl-9"
-          />
+      <div className="bg-card mb-4 space-y-3 rounded-xl border p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 w-full flex-1">
+            <Search className="text-muted-foreground/70 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search actor, member, or value in loaded events"
+              aria-label="Search the audit log"
+              className="pl-9"
+            />
+          </div>
+
+          <Select value={action} onValueChange={onActionChange}>
+            <SelectTrigger className="w-full sm:w-56" aria-label="Filter by action">
+              <SelectValue placeholder="All actions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All actions</SelectItem>
+              {AUDIT_ACTION_FILTERS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {describeAction(value).label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {actions.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setAction(value)}
-              aria-pressed={action === value}
-              className={cn(
-                "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-                action === value
-                  ? "border-primary/40 bg-primary/12 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {value === "all" ? "All actions" : describeAction(value).label}
-            </button>
-          ))}
-        </div>
+        <p className="text-muted-foreground text-xs">
+          Newest first · 50 events per load · text search runs on what is loaded
+          below (use Load older for history).
+        </p>
       </div>
 
       <div className="bg-card overflow-hidden rounded-xl border">
@@ -150,9 +203,11 @@ export function AuditTable({ entries }: { entries: AuditLogEntryWithActor[] }) {
             icon={ScrollText}
             title={query || action !== "all" ? "No matching events" : "Nothing logged yet"}
             description={
-              query || action !== "all"
-                ? "Try a different search or action filter."
-                : "Role changes, remit reviews, edits and voids all appear here automatically."
+              query
+                ? "Try a different search, clear it, or load older events."
+                : action !== "all"
+                  ? "No events of this type in the loaded window."
+                  : "Role changes, remit reviews, edits and voids all appear here automatically."
             }
           />
         ) : (
@@ -177,11 +232,11 @@ export function AuditTable({ entries }: { entries: AuditLogEntryWithActor[] }) {
                       <Badge variant="outline" className={TONE_CLASS[meta.tone]}>
                         {meta.label}
                       </Badge>
-                      {subject && (
+                      {subject ? (
                         <p className="text-muted-foreground mt-1.5 text-xs">
                           {subject}
                         </p>
-                      )}
+                      ) : null}
                       <div className="mt-1.5 sm:hidden">
                         <PersonCell person={entry.actor} compact />
                       </div>
@@ -211,9 +266,31 @@ export function AuditTable({ entries }: { entries: AuditLogEntryWithActor[] }) {
         )}
       </div>
 
-      <p className="text-muted-foreground mt-3 text-xs">
-        Showing {visible.length} of {entries.length} events
-      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground text-xs">
+          Showing {visible.length}
+          {query ? ` match${visible.length === 1 ? "" : "es"} in` : ""}{" "}
+          {entries.length} loaded event{entries.length === 1 ? "" : "s"}
+        </p>
+
+        {nextCursor ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={loadOlder}
+            className={cn("w-full sm:w-auto")}
+          >
+            {pending ? <Loader2 className="animate-spin" /> : null}
+            Load older events
+          </Button>
+        ) : entries.length > 0 ? (
+          <p className="text-muted-foreground text-xs sm:text-right">
+            End of loaded history
+          </p>
+        ) : null}
+      </div>
     </>
   );
 }

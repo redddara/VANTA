@@ -15,6 +15,7 @@ import { CraftingUnlockBadges } from "@/components/reputation/crafting-unlocks";
 import { RepBandBadge } from "@/components/reputation/rep-band-badge";
 import { TierPayouts } from "@/components/reputation/tier-payouts";
 import { RemitDeleteButton } from "@/components/remit/remit-delete-button";
+import { RemitProofThumb } from "@/components/remit/remit-proof";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
@@ -208,6 +209,7 @@ export default async function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Item</TableHead>
+                  <TableHead className="w-14">Proof</TableHead>
                   <TableHead className="hidden sm:table-cell">Cash</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">When</TableHead>
@@ -226,6 +228,13 @@ export default async function DashboardPage() {
                             {log.description}
                           </p>
                         ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {log.proof_path ? (
+                          <RemitProofThumb path={log.proof_path} />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="tabular text-muted-foreground hidden sm:table-cell">
                         {log.amount != null ? formatMoney(log.amount) : "\u2014"}

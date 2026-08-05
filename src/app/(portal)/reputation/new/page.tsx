@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SetRepGrid } from "@/components/reputation/set-rep-grid";
+import { SetRepGrid } from "@/components/reputation/set-reputation-grid";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireStaff } from "@/lib/auth";
@@ -20,13 +20,13 @@ export default async function SetReputationPage() {
     .eq("is_active", true)
     .returns<MemberSummary[]>();
 
-  const members = data ?? [];
+  const members = Array.isArray(data) ? data : [];
 
   return (
     <>
       <PageHeader
         title="Set Reputation"
-        description="Spreadsheet-style entry — tab across a row, hit Enter to save, move to the next member."
+        description="Pick Hacker and/or Driver, house type, launder and store from the lists. Type ATM salary by hand, then Save."
       />
 
       <Card className="py-4">

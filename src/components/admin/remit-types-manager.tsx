@@ -30,6 +30,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -44,7 +51,9 @@ import {
   deleteRemitType,
   updateRemitType,
 } from "@/lib/actions/remit";
-import type { RemitType } from "@/lib/types/app";
+import type { InventoryItem, RemitType } from "@/lib/types/app";
+
+const NONE = "__none__";
 
 const Schema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -55,14 +64,24 @@ const Schema = z.object({
     .positive()
     .optional()
     .nullable(),
+  inventoryItemId: z.uuid().optional().nullable(),
 });
 
 type Values = z.infer<typeof Schema>;
 
-export function RemitTypesManager({ types }: { types: RemitType[] }) {
+export function RemitTypesManager({
+  types,
+  inventoryItems,
+}: {
+  types: RemitType[];
+  inventoryItems: InventoryItem[];
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState<RemitType | "new" | null>(null);
   const [deleting, setDeleting] = useState<RemitType | null>(null);
+
+  const itemName = (id: string | null) =>
+    id ? (inventoryItems.find((i) => i.id === id)?.name ?? "Unknown item") : null;
 
   async function handleDelete() {
     if (!deleting) return;
@@ -98,42 +117,55 @@ export function RemitTypesManager({ types }: { types: RemitType[] }) {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Weekly quota</TableHead>
+                <TableHead>Inventory</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {types.map((type) => (
-                <TableRow key={type.id}>
-                  <TableCell className="font-medium">{type.name}</TableCell>
-                  <TableCell>
-                    {type.is_weekly_quota ? (
-                      <Badge variant="outline">{type.quota_amount} / week</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">No</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditing(type)}
-                        aria-label={`Edit ${type.name}`}
-                      >
-                        <Pencil />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleting(type)}
-                        aria-label={`Delete ${type.name}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {types.map((type) => {
+                const linked = itemName(type.inventory_item_id);
+                return (
+                  <TableRow key={type.id}>
+                    <TableCell className="font-medium">{type.name}</TableCell>
+                    <TableCell>
+                      {type.is_weekly_quota ? (
+                        <Badge variant="outline">{type.quota_amount} / week</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {linked ? (
+                        <span className="text-sm">{linked}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          Not linked
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditing(type)}
+                          aria-label={`Edit ${type.name}`}
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleting(type)}
+                          aria-label={`Delete ${type.name}`}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
@@ -143,6 +175,7 @@ export function RemitTypesManager({ types }: { types: RemitType[] }) {
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
         type={editing === "new" || editing === null ? null : editing}
+        inventoryItems={inventoryItems}
         onSaved={() => {
           setEditing(null);
           router.refresh();
@@ -170,11 +203,13 @@ function TypeEditorDialog({
   open,
   onOpenChange,
   type,
+  inventoryItems,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: RemitType | null;
+  inventoryItems: InventoryItem[];
   onSaved: () => void;
 }) {
   const form = useForm<Values>({
@@ -184,8 +219,14 @@ function TypeEditorDialog({
           name: type.name,
           isWeeklyQuota: type.is_weekly_quota,
           quotaAmount: type.quota_amount,
+          inventoryItemId: type.inventory_item_id,
         }
-      : { name: "", isWeeklyQuota: false, quotaAmount: 2 },
+      : {
+          name: "",
+          isWeeklyQuota: false,
+          quotaAmount: 2,
+          inventoryItemId: null,
+        },
   });
 
   const isWeekly = useWatch({ control: form.control, name: "isWeeklyQuota" });
@@ -195,6 +236,7 @@ function TypeEditorDialog({
       name: values.name,
       isWeeklyQuota: values.isWeeklyQuota,
       quotaAmount: values.isWeeklyQuota ? values.quotaAmount : null,
+      inventoryItemId: values.inventoryItemId || null,
     };
 
     const result = type
@@ -216,8 +258,8 @@ function TypeEditorDialog({
         <DialogHeader>
           <DialogTitle>{type ? "Edit remit type" : "Add remit type"}</DialogTitle>
           <DialogDescription>
-            Turn on weekly quota to require this type every week for every
-            active member. Multiple types can each carry their own quota.
+            Link an inventory item so approved remits of this type add inbound
+            stock automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -232,6 +274,42 @@ function TypeEditorDialog({
                   <FormControl>
                     <Input placeholder="Chopmats — Aluminum" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="inventoryItemId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Inventory item</FormLabel>
+                  <Select
+                    value={field.value ?? NONE}
+                    onValueChange={(value) =>
+                      field.onChange(value === NONE ? null : value)
+                    }
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Not linked" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Not linked</SelectItem>
+                      {inventoryItems.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                          {!item.is_active ? " (retired)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    When linked, approving this remit adds the quantity to that
+                    stash item.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -66,6 +66,127 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          created_by: string
+          direction: string
+          id: string
+          item_id: string
+          member_id: string | null
+          note: string | null
+          quantity: number
+          remit_log_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          direction: string
+          id?: string
+          item_id: string
+          member_id?: string | null
+          note?: string | null
+          quantity: number
+          remit_log_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          direction?: string
+          id?: string
+          item_id?: string
+          member_id?: string | null
+          note?: string | null
+          quantity?: number
+          remit_log_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_remit_log_id_fkey"
+            columns: ["remit_log_id"]
+            isOneToOne: true
+            referencedRelation: "remit_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_rep: {
         Row: {
           atm_payout: string | null
@@ -193,12 +314,15 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_advance: boolean
           member_id: string
+          proof_path: string | null
           quantity: number
           remit_type_id: string
           reviewed_by: string | null
           status: string
           submitted_by: string
+          target_week_start: string | null
           week_start: string
         }
         Insert: {
@@ -206,12 +330,15 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_advance?: boolean
           member_id: string
+          proof_path?: string | null
           quantity?: number
           remit_type_id: string
           reviewed_by?: string | null
           status?: string
           submitted_by: string
+          target_week_start?: string | null
           week_start?: string
         }
         Update: {
@@ -219,12 +346,15 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_advance?: boolean
           member_id?: string
+          proof_path?: string | null
           quantity?: number
           remit_type_id?: string
           reviewed_by?: string | null
           status?: string
           submitted_by?: string
+          target_week_start?: string | null
           week_start?: string
         }
         Relationships: [
@@ -311,6 +441,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          inventory_item_id: string | null
           is_weekly_quota: boolean
           name: string
           quota_amount: number | null
@@ -318,6 +449,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           is_weekly_quota?: boolean
           name: string
           quota_amount?: number | null
@@ -325,11 +457,27 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          inventory_item_id?: string | null
           is_weekly_quota?: boolean
           name?: string
           quota_amount?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "remit_types_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remit_types_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock"
+            referencedColumns: ["item_id"]
+          },
+        ]
       }
       reputation_entries_legacy: {
         Row: {
@@ -403,6 +551,18 @@ export type Database = {
       }
     }
     Views: {
+      inventory_stock: {
+        Row: {
+          created_at: string | null
+          inbound_total: number | null
+          is_active: boolean | null
+          item_id: string | null
+          item_name: string | null
+          on_hand: number | null
+          outbound_total: number | null
+        }
+        Relationships: []
+      }
       member_summary: {
         Row: {
           atm_payout: string | null
@@ -476,7 +636,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      vanta_inventory_balances: {
+        Args: never
+        Returns: {
+          inbound_total: number
+          item_id: string
+          on_hand: number
+          outbound_total: number
+        }[]
+      }
       vanta_is_admin: { Args: never; Returns: boolean }
+      vanta_is_captain: { Args: never; Returns: boolean }
       vanta_is_staff: { Args: never; Returns: boolean }
       vanta_jsonb_diff: { Args: { after: Json; before: Json }; Returns: Json }
       vanta_member_totals: {
@@ -487,10 +657,41 @@ export type Database = {
           total_approved_remit: number
         }[]
       }
+      vanta_member_week_compliance: {
+        Args: { p_week: string }
+        Returns: {
+          approved_quantity: number
+          crew_rank: string
+          discord_avatar_url: string
+          discord_username: string
+          ingame_name: string
+          is_active: boolean
+          member_id: string
+          quota_amount: number
+          quota_met: boolean
+          quota_type_id: string
+          quota_type_name: string
+          week_start: string
+        }[]
+      }
       vanta_rank_weight: { Args: { p_rank: string }; Returns: number }
+      vanta_remit_week_starts: {
+        Args: never
+        Returns: {
+          week_start: string
+        }[]
+      }
       vanta_week_start: { Args: { p_at?: string }; Returns: string }
       vanta_weekly_laundering_totals: {
         Args: never
+        Returns: {
+          approved_quantity: number
+          member_id: string
+          remit_type_id: string
+        }[]
+      }
+      vanta_weekly_totals_for: {
+        Args: { p_week: string }
         Returns: {
           approved_quantity: number
           member_id: string

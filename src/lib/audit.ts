@@ -16,6 +16,12 @@ const ACTIONS: Record<string, AuditMeta> = {
   "remit.reject": { label: "Remit rejected", tone: "negative" },
   "remit.edit": { label: "Remit edited", tone: "warning" },
   "remit.delete": { label: "Remit voided", tone: "negative" },
+  "inventory.inbound": { label: "Inventory inbound", tone: "positive" },
+  "inventory.outbound": { label: "Inventory outbound", tone: "warning" },
+  "inventory.void": { label: "Inventory voided", tone: "negative" },
+  "inventory.item_create": { label: "Inventory item added", tone: "positive" },
+  "inventory.item_edit": { label: "Inventory item edited", tone: "warning" },
+  "inventory.item_delete": { label: "Inventory item deleted", tone: "negative" },
   // Retired with the points ledger; kept so older audit rows still read cleanly.
   "reputation.edit": { label: "Reputation edited", tone: "warning" },
   "reputation.delete": { label: "Reputation voided", tone: "negative" },
@@ -23,6 +29,31 @@ const ACTIONS: Record<string, AuditMeta> = {
   "rep.tier_change": { label: "Rep tier changed", tone: "warning" },
   "rep.set": { label: "Reputation set", tone: "warning" },
 };
+
+/** Known action keys for filter dropdowns (newest crew actions first). */
+export const AUDIT_ACTION_FILTERS = [
+  "rank.change",
+  "member.deactivate",
+  "member.reactivate",
+  "remit.approve",
+  "remit.reject",
+  "remit.edit",
+  "remit.delete",
+  "remit.status",
+  "inventory.inbound",
+  "inventory.outbound",
+  "inventory.void",
+  "inventory.item_create",
+  "inventory.item_edit",
+  "inventory.item_delete",
+  "rep.set",
+  "rep.tier_change",
+  "reputation.edit",
+  "reputation.delete",
+  "role.change",
+] as const;
+
+export const AUDIT_PAGE_SIZE = 50;
 
 export function describeAction(action: string): AuditMeta {
   return ACTIONS[action] ?? { label: action, tone: "neutral" };
@@ -39,6 +70,10 @@ const HIDDEN_FIELDS = new Set([
   "remit_type",
   "reviewed_by",
   "discord_username",
+  "item",
+  "direction",
+  "note",
+  "name",
 ]);
 
 const FIELD_LABELS: Record<string, string> = {
@@ -128,6 +163,37 @@ export function extractRemitReviewSummary(detail: Json | null): string | null {
   else if (type) parts.push(type);
   else if (quantity != null) parts.push(`qty ${quantity}`);
   if (amount != null && amount !== "") parts.push(`$${amount}`);
+  return parts.join(" · ");
+}
+
+/** Snapshot for inventory inbound/outbound audits. */
+export function extractInventorySummary(detail: Json | null): string | null {
+  if (!detail || typeof detail !== "object" || Array.isArray(detail)) return null;
+
+  const item =
+    typeof detail.item === "string"
+      ? detail.item
+      : typeof detail.name === "string"
+        ? detail.name
+        : null;
+  const quantity =
+    typeof detail.quantity === "number" || typeof detail.quantity === "string"
+      ? detail.quantity
+      : null;
+  const direction =
+    typeof detail.direction === "string" ? detail.direction : null;
+  const note = typeof detail.note === "string" ? detail.note : null;
+
+  if (item == null && quantity == null) return null;
+
+  const parts: string[] = [];
+  if (quantity != null && item) parts.push(`${quantity}× ${item}`);
+  else if (item) parts.push(item);
+  else if (quantity != null) parts.push(`qty ${quantity}`);
+  if (direction === "inbound" || direction === "outbound") {
+    parts.push(direction);
+  }
+  if (note) parts.push(note);
   return parts.join(" · ");
 }
 

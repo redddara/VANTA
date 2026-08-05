@@ -3,6 +3,7 @@ import { Banknote } from "lucide-react";
 
 import { RemitDeleteButton } from "@/components/remit/remit-delete-button";
 import { RemitForm } from "@/components/remit/remit-form";
+import { RemitProofThumb } from "@/components/remit/remit-proof";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { PersonCell } from "@/components/shared/person-cell";
@@ -65,8 +66,8 @@ export default async function LogRemitPage() {
         title="Log Remit"
         description={
           staff
-            ? "Log for yourself by default. Staff can credit someone else. Pending mistakes can be deleted."
-            : "Record contracts and materials you handed over. Pending mistakes can be deleted."
+            ? "Log for yourself by default. Paste a screenshot as proof. Staff can credit someone else."
+            : "Record contracts and materials you handed over. Paste a screenshot as proof."
         }
       />
 
@@ -123,6 +124,9 @@ export default async function LogRemitPage() {
                   staff && entry.member_id !== profile.id;
                 return (
                   <li key={entry.id} className="flex items-start gap-2 p-3">
+                    {entry.proof_path ? (
+                      <RemitProofThumb path={entry.proof_path} />
+                    ) : null}
                     <div className="min-w-0 flex-1">
                       {showMember ? (
                         <PersonCell person={entry.member} compact />

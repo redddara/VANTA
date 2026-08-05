@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { QuantityInput } from "@/components/shared/quantity-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,15 +41,14 @@ function EditForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [remitTypeId, setRemitTypeId] = useState(entry.remit_type_id);
-  const [quantity, setQuantity] = useState(String(entry.quantity));
+  const [quantity, setQuantity] = useState<number | undefined>(entry.quantity);
   const [amount, setAmount] = useState(
     entry.amount == null ? "" : String(entry.amount),
   );
   const [description, setDescription] = useState(entry.description ?? "");
 
   function save() {
-    const parsedQuantity = Number(quantity);
-    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    if (quantity == null || !Number.isFinite(quantity) || quantity <= 0) {
       toast.error("Enter a quantity greater than zero.");
       return;
     }
@@ -63,7 +63,7 @@ function EditForm({
       const result = await editRemit({
         id: entry.id,
         remitTypeId,
-        quantity: parsedQuantity,
+        quantity: quantity,
         amount: parsedAmount,
         description,
       });
@@ -108,14 +108,11 @@ function EditForm({
 
         <div className="grid gap-2">
           <Label htmlFor="remit-quantity">Quantity</Label>
-          <Input
+          <QuantityInput
             id="remit-quantity"
-            type="number"
-            min={1}
-            step={1}
             value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-            className="tabular"
+            onChange={setQuantity}
+            placeholder="e.g. 4"
           />
         </div>
 
@@ -127,12 +124,14 @@ function EditForm({
             </span>
             <Input
               id="remit-amount"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
+              autoComplete="off"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) =>
+                setAmount(event.target.value.replace(/[^\d.]/g, ""))
+              }
               className="tabular pl-7"
               placeholder="Blank if none"
             />

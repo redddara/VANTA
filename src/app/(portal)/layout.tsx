@@ -12,10 +12,10 @@ export default async function PortalLayout({
   const items = visibleNavItems(profile.crew_rank);
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="min-h-dvh lg:pl-60">
       <SideNav profile={profile} items={items} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-col">
         <SiteHeader profile={profile} items={items} />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}

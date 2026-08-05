@@ -7,6 +7,7 @@ import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shar
 import { requireSession } from "@/lib/auth";
 import { REP_BANDS, REP_BAND_LABELS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
+import { isStaff } from "@/lib/types/app";
 
 const uuid = z.uuid("Pick a value from the list.");
 
@@ -50,6 +51,9 @@ export async function setMemberRep(
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const { profile } = await requireSession();
+  if (!isStaff(profile.crew_rank)) {
+    return { ok: false, error: "Only Enforcers and above can set reputation." };
+  }
   const supabase = await createClient();
 
   const { error } = await supabase.from("member_rep").upsert(
