@@ -23,7 +23,7 @@ export default async function AdminRemitTypesPage() {
     <>
       <PageHeader
         title="Remit Types"
-        description="Catalog of what members can remit. Exactly one type may carry the weekly quota."
+        description="Catalog of what members can remit. Any number of types can carry a weekly quota."
       />
       <RemitTypesManager types={data ?? []} />
     </>

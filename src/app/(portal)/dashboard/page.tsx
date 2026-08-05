@@ -73,17 +73,32 @@ export default async function DashboardPage() {
       .from("member_weekly_compliance")
       .select(WEEKLY_COMPLIANCE_SELECT)
       .eq("member_id", profile.id)
-      .maybeSingle<WeeklyCompliance>(),
+      .returns<WeeklyCompliance[]>(),
   ]);
 
   const summary = summaryResult.data;
   const remit = remitResult.data ?? [];
-  const compliance = complianceResult.data;
+  const quotas = complianceResult.data ?? [];
 
   const approvedRemit = Number(summary?.total_approved_remit ?? 0);
   const pendingCount = Number(summary?.pending_remit_count ?? 0);
   const hasRep = Boolean(summary?.tier_label);
-  const quotaMet = compliance?.quota_met ?? false;
+  const quotasMet = quotas.length > 0 && quotas.every((q) => q.quota_met);
+  const quotasHint =
+    quotas.length === 0
+      ? "Quota not configured"
+      : quotas
+          .map(
+            (q) =>
+              `${q.quota_type_name} ${q.approved_quantity}/${q.quota_amount}`,
+          )
+          .join(" · ");
+  const quotasValue =
+    quotas.length === 0
+      ? "—"
+      : quotas.length === 1
+        ? `${quotas[0].approved_quantity}/${quotas[0].quota_amount}`
+        : `${quotas.filter((q) => q.quota_met).length}/${quotas.length} met`;
 
   return (
     <>
@@ -107,20 +122,16 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Weekly quota"
-          value={
-            compliance
-              ? `${compliance.approved_quantity}/${compliance.quota_amount}`
-              : "—"
+          value={quotasValue}
+          icon={quotas.length === 0 ? Clock : quotasMet ? Check : X}
+          tone={
+            quotas.length === 0
+              ? "default"
+              : quotasMet
+                ? "positive"
+                : "negative"
           }
-          icon={quotaMet ? Check : X}
-          tone={quotaMet ? "positive" : "negative"}
-          hint={
-            compliance
-              ? quotaMet
-                ? `${compliance.quota_type_name} met this week`
-                : `${compliance.quota_type_name} still short`
-              : "Quota not configured"
-          }
+          hint={quotasHint}
         />
         <StatCard
           label="Reputation"

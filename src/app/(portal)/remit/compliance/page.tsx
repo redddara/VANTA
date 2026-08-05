@@ -30,8 +30,8 @@ export default async function RemitCompliancePage() {
         title="Weekly Quota"
         description={
           weekStart
-            ? `Who has met this week’s laundering quota (week of ${formatDate(weekStart)}). Every active member is tracked — no rank is exempt.`
-            : "Who has met this week’s laundering quota. Every active member is tracked — no rank is exempt."
+            ? `Who has met this week’s quotas (week of ${formatDate(weekStart)}). Every active member is tracked per quota type — no rank is exempt.`
+            : "Who has met this week’s quotas. Every active member is tracked per quota type — no rank is exempt."
         }
         actions={
           <Button asChild variant="outline" size="sm">

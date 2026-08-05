@@ -12,6 +12,8 @@ const ACTIONS: Record<string, AuditMeta> = {
   "member.deactivate": { label: "Member deactivated", tone: "negative" },
   "member.reactivate": { label: "Member reactivated", tone: "positive" },
   "remit.status": { label: "Remit reviewed", tone: "neutral" },
+  "remit.approve": { label: "Remit approved", tone: "positive" },
+  "remit.reject": { label: "Remit rejected", tone: "negative" },
   "remit.edit": { label: "Remit edited", tone: "warning" },
   "remit.delete": { label: "Remit voided", tone: "negative" },
   // Retired with the points ledger; kept so older audit rows still read cleanly.
@@ -28,7 +30,16 @@ export function describeAction(action: string): AuditMeta {
 
 export type FieldChange = { field: string; from: string; to: string };
 
-const HIDDEN_FIELDS = new Set(["member", "member_id", "deleted"]);
+const HIDDEN_FIELDS = new Set([
+  "member",
+  "member_id",
+  "deleted",
+  "quantity",
+  "amount",
+  "remit_type",
+  "reviewed_by",
+  "discord_username",
+]);
 
 const FIELD_LABELS: Record<string, string> = {
   amount: "Amount",
@@ -43,6 +54,7 @@ const FIELD_LABELS: Record<string, string> = {
   tier: "Tier",
   quantity: "Quantity",
   remit_type_id: "Remit type",
+  remit_type: "Remit type",
 };
 
 export function fieldLabel(field: string): string {
@@ -90,6 +102,33 @@ export function extractDeleted(
   if (!deleted || typeof deleted !== "object" || Array.isArray(deleted)) return null;
 
   return deleted as Record<string, Json>;
+}
+
+/** Snapshot fields attached to remit approve/reject audits. */
+export function extractRemitReviewSummary(detail: Json | null): string | null {
+  if (!detail || typeof detail !== "object" || Array.isArray(detail)) return null;
+
+  const type =
+    typeof detail.remit_type === "string" ? detail.remit_type : null;
+  const quantity =
+    typeof detail.quantity === "number" || typeof detail.quantity === "string"
+      ? detail.quantity
+      : null;
+  const amount =
+    detail.amount === null || detail.amount === undefined
+      ? null
+      : typeof detail.amount === "number" || typeof detail.amount === "string"
+        ? detail.amount
+        : null;
+
+  if (type == null && quantity == null && amount == null) return null;
+
+  const parts: string[] = [];
+  if (quantity != null && type) parts.push(`${quantity}× ${type}`);
+  else if (type) parts.push(type);
+  else if (quantity != null) parts.push(`qty ${quantity}`);
+  if (amount != null && amount !== "") parts.push(`$${amount}`);
+  return parts.join(" · ");
 }
 
 /** The affected member's name, when the trigger recorded one. */

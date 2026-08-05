@@ -216,8 +216,8 @@ function TypeEditorDialog({
         <DialogHeader>
           <DialogTitle>{type ? "Edit remit type" : "Add remit type"}</DialogTitle>
           <DialogDescription>
-            Only one type can carry the weekly quota. Turning this on for a type
-            will fail if another weekly quota already exists.
+            Turn on weekly quota to require this type every week for every
+            active member. Multiple types can each carry their own quota.
           </DialogDescription>
         </DialogHeader>
 

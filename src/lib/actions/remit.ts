@@ -214,7 +214,7 @@ export async function createRemitType(input: {
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "That type already exists, or another weekly quota is set." };
+      return { ok: false, error: "That type name is already taken." };
     }
     return { ok: false, error: toActionError(error) };
   }
@@ -251,7 +251,7 @@ export async function updateRemitType(input: {
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "That type already exists, or another weekly quota is set." };
+      return { ok: false, error: "That type name is already taken." };
     }
     return { ok: false, error: toActionError(error) };
   }

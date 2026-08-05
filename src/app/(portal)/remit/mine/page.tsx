@@ -50,13 +50,14 @@ export default async function LogRemitPage() {
       .from("member_weekly_compliance")
       .select(WEEKLY_COMPLIANCE_SELECT)
       .eq("member_id", profile.id)
-      .maybeSingle<WeeklyCompliance>(),
+      .returns<WeeklyCompliance[]>(),
     staff ? getSelectableMembers() : Promise.resolve([]),
   ]);
 
   const types = typesResult.data ?? [];
   const recentEntries = recentResult.data ?? [];
-  const compliance = complianceResult.data;
+  const quotas = complianceResult.data ?? [];
+  const quotasMet = quotas.length > 0 && quotas.every((q) => q.quota_met);
 
   return (
     <>
@@ -69,20 +70,24 @@ export default async function LogRemitPage() {
         }
       />
 
-      {compliance ? (
+      {quotas.length > 0 ? (
         <div
           className={cn(
-            "mb-6 rounded-xl border px-4 py-3 text-sm",
-            compliance.quota_met
+            "mb-6 space-y-2 rounded-xl border px-4 py-3 text-sm",
+            quotasMet
               ? "border-success/30 bg-success/10 text-success"
               : "border-destructive/30 bg-destructive/10 text-destructive",
           )}
         >
-          Weekly {compliance.quota_type_name}:{" "}
-          <span className="font-semibold tabular">
-            {compliance.approved_quantity}/{compliance.quota_amount}
-          </span>{" "}
-          approved — {compliance.quota_met ? "quota met" : "still short"}
+          {quotas.map((q) => (
+              <p key={q.quota_type_id}>
+                Weekly {q.quota_type_name}:{" "}
+                <span className="font-semibold tabular">
+                  {q.approved_quantity}/{q.quota_amount}
+                </span>{" "}
+                approved — {q.quota_met ? "quota met" : "still short"}
+              </p>
+          ))}
         </div>
       ) : null}
 

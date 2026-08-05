@@ -491,8 +491,8 @@ async function main() {
     // Still pending — not counted yet.
     let { rows } = await as(
       captainId,
-      "select approved_quantity, quota_met from public.member_weekly_compliance where member_id = $1;",
-      [operatorId],
+      "select approved_quantity, quota_met from public.member_weekly_compliance where member_id = $1 and quota_type_id = $2;",
+      [operatorId, launderingType.id],
     );
     assert(Number(rows[0].approved_quantity) === 2, `expected 2 from the earlier approve, got ${rows[0].approved_quantity}`);
     assert(rows[0].quota_met === true, "Operator should already meet quota from the approved qty 2");
@@ -501,23 +501,48 @@ async function main() {
     rows = (
       await as(
         captainId,
-        "select approved_quantity from public.member_weekly_compliance where member_id = $1;",
-        [operatorId],
+        "select approved_quantity from public.member_weekly_compliance where member_id = $1 and quota_type_id = $2;",
+        [operatorId, launderingType.id],
       )
     ).rows;
     assert(Number(rows[0].approved_quantity) === 2, "non-quota types inflated the weekly count");
   });
 
+  await check("multiple weekly quota types are allowed", async () => {
+    const { rows: created } = await as(
+      underbossId,
+      `insert into public.remit_types (name, is_weekly_quota, quota_amount)
+       values ('Extra Weekly Contract', true, 1)
+       returning id;`,
+    );
+    assert(created.length === 1, "second weekly quota type was rejected");
+    const extraId = created[0].id;
+
+    const { rows } = await as(
+      captainId,
+      "select quota_type_id from public.member_weekly_compliance where member_id = $1;",
+      [operatorId],
+    );
+    assert(rows.length === 2, `expected 2 compliance rows (one per quota), got ${rows.length}`);
+    assert(
+      rows.some((r) => r.quota_type_id === launderingType.id) &&
+        rows.some((r) => r.quota_type_id === extraId),
+      "compliance missing one of the weekly quota types",
+    );
+
+    await as(underbossId, "delete from public.remit_types where id = $1;", [extraId]);
+  });
+
   await check("a Prospect can read their own compliance row only", async () => {
     const { rows } = await as(prospectId, "select member_id, quota_met from public.member_weekly_compliance;");
     assert(rows.length === 1, `Prospect saw ${rows.length} compliance rows`);
-    assert(rows[0].member_id === prospectId, "Prospect read another member's compliance");
+    assert(rows.every((r) => r.member_id === prospectId), "Prospect read another member's compliance");
     assert(rows[0].quota_met === false, "Prospect has no approved laundering yet");
   });
 
   await check("an Operator cannot read the crew compliance table", async () => {
     const { rows } = await as(operatorId, "select member_id from public.member_weekly_compliance;");
-    assert(rows.length === 1 && rows[0].member_id === operatorId, "Operator saw other members' compliance");
+    assert(rows.length >= 1 && rows.every((r) => r.member_id === operatorId), "Operator saw other members' compliance");
   });
 
   console.log("\nmember_rep RLS (per-member reputation)");
@@ -664,20 +689,32 @@ async function main() {
 
   await check("approving remit was recorded with actor and diff", async () => {
     const { rows } = await asSystem(
-      "select actor_id, action, target_id, detail from public.audit_log where action = 'remit.status';",
+      "select actor_id, action, target_id, detail from public.audit_log where action = 'remit.approve';",
     );
-    assert(rows.length === 1, `expected 1 remit.status row, got ${rows.length}`);
+    assert(rows.length === 1, `expected 1 remit.approve row, got ${rows.length}`);
     assert(rows[0].actor_id === underbossId, "the acting admin was not recorded");
     assert(rows[0].target_id === remitId, "the audited target is wrong");
     assert(rows[0].detail.status.from === "pending" && rows[0].detail.status.to === "approved", "the diff is wrong");
+    assert(typeof rows[0].detail.member === "string" && rows[0].detail.member.length > 0, "credited member missing from audit");
+    assert(rows[0].detail.reviewed_by === underbossId, "reviewed_by missing from audit detail");
   });
 
   await check("rank changes are recorded", async () => {
-    const { rows } = await asSystem("select detail from public.audit_log where action = 'rank.change';");
+    const { rows } = await asSystem(
+      "select actor_id, target_id, detail from public.audit_log where action = 'rank.change';",
+    );
     assert(rows.length >= 1, "no rank change was audited");
     assert(
       rows.some((r) => r.detail.crew_rank?.to === "Underboss"),
       "the promotion to Underboss was not captured",
+    );
+    assert(
+      rows.every((r) => typeof r.detail.member === "string" && r.detail.member.length > 0),
+      "rank change audits must name the member whose rank changed",
+    );
+    assert(
+      rows.every((r) => r.target_id != null),
+      "rank change audits must point at the affected profile",
     );
   });
 

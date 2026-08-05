@@ -20,6 +20,7 @@ import {
   describeAction,
   extractChanges,
   extractDeleted,
+  extractRemitReviewSummary,
   extractSubject,
   fieldLabel,
   type AuditTone,
@@ -38,6 +39,7 @@ const TONE_CLASS: Record<AuditTone, string> = {
 function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
   const changes = extractChanges(entry.detail);
   const deleted = extractDeleted(entry.detail);
+  const remitSummary = extractRemitReviewSummary(entry.detail);
 
   if (deleted) {
     const summary = Object.entries(deleted)
@@ -50,26 +52,33 @@ function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
     );
   }
 
-  if (changes.length === 0) {
+  if (changes.length === 0 && !remitSummary) {
     return <span className="text-muted-foreground text-xs">{"\u2014"}</span>;
   }
 
   return (
-    <ul className="space-y-1">
-      {changes.map((change) => (
-        <li
-          key={change.field}
-          className="flex flex-wrap items-center gap-1.5 text-xs"
-        >
-          <span className="text-muted-foreground">{fieldLabel(change.field)}</span>
-          <span className="text-muted-foreground/60 line-through">
-            {change.from}
-          </span>
-          <ArrowRight className="text-muted-foreground/50 size-3" />
-          <span className="text-foreground font-medium">{change.to}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-1.5">
+      {remitSummary ? (
+        <p className="text-foreground text-xs font-medium">{remitSummary}</p>
+      ) : null}
+      {changes.length > 0 ? (
+        <ul className="space-y-1">
+          {changes.map((change) => (
+            <li
+              key={change.field}
+              className="flex flex-wrap items-center gap-1.5 text-xs"
+            >
+              <span className="text-muted-foreground">{fieldLabel(change.field)}</span>
+              <span className="text-muted-foreground/60 line-through">
+                {change.from}
+              </span>
+              <ArrowRight className="text-muted-foreground/50 size-3" />
+              <span className="text-foreground font-medium">{change.to}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

@@ -33,7 +33,7 @@ export default async function AdminRemitPage() {
     <>
       <PageHeader
         title="Remit Queue"
-        description="Approve, reject, edit or void contributions. Only approved laundering contracts count toward the weekly quota."
+        description="Approve, reject, edit or void contributions. Only approved quantity on weekly-quota types counts toward those quotas."
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">

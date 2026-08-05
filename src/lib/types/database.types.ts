@@ -494,6 +494,7 @@ export type Database = {
         Returns: {
           approved_quantity: number
           member_id: string
+          remit_type_id: string
         }[]
       }
     }

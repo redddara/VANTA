@@ -32,6 +32,19 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("missing");
 
+  const quotaTypes = useMemo(() => {
+    const seen = new Map<string, { name: string; amount: number }>();
+    for (const row of rows) {
+      if (!seen.has(row.quota_type_id)) {
+        seen.set(row.quota_type_id, {
+          name: row.quota_type_name,
+          amount: row.quota_amount,
+        });
+      }
+    }
+    return [...seen.values()];
+  }, [rows]);
+
   const counts = useMemo(
     () => ({
       missing: rows.filter((r) => !r.quota_met).length,
@@ -49,21 +62,25 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
       )
       .filter((r) =>
         needle
-          ? [r.ingame_name, r.discord_username, r.crew_rank]
+          ? [
+              r.ingame_name,
+              r.discord_username,
+              r.crew_rank,
+              r.quota_type_name,
+            ]
               .filter(Boolean)
               .some((field) => field!.toLowerCase().includes(needle))
           : true,
       )
       .sort((a, b) => {
         if (a.quota_met !== b.quota_met) return a.quota_met ? 1 : -1;
-        return displayName(a).localeCompare(displayName(b), undefined, {
+        const byName = displayName(a).localeCompare(displayName(b), undefined, {
           sensitivity: "base",
         });
+        if (byName !== 0) return byName;
+        return a.quota_type_name.localeCompare(b.quota_type_name);
       });
   }, [rows, query, filter]);
-
-  const quota = rows[0]?.quota_amount ?? 2;
-  const typeName = rows[0]?.quota_type_name ?? "Laundering Contract";
 
   return (
     <div>
@@ -74,7 +91,7 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search members"
+            placeholder="Search members or quota types"
             aria-label="Search compliance"
             className="pl-9"
           />
@@ -108,19 +125,31 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
       </div>
 
       <p className="text-muted-foreground mb-3 text-sm">
-        This week&apos;s quota: <span className="text-foreground font-medium">{quota}</span>{" "}
-        approved {typeName}
-        {quota === 1 ? "" : "s"} per active member. Resets every Sunday (Manila time).
+        {quotaTypes.length === 0 ? (
+          "No weekly quotas configured."
+        ) : (
+          <>
+            This week&apos;s quotas (Sunday reset, Manila):{" "}
+            {quotaTypes.map((q, i) => (
+              <span key={q.name}>
+                {i > 0 ? " · " : null}
+                <span className="text-foreground font-medium">
+                  {q.amount}× {q.name}
+                </span>
+              </span>
+            ))}
+          </>
+        )}
       </p>
 
       <div className="bg-card overflow-hidden rounded-xl border">
         {visible.length === 0 ? (
           <EmptyState
             icon={Users}
-            title={query || filter !== "all" ? "No members match" : "No active members"}
+            title={query || filter !== "all" ? "No rows match" : "No active members"}
             description={
               filter === "missing"
-                ? "Everyone has met the quota this week."
+                ? "Every quota is met this week."
                 : "Try a different filter or search."
             }
           />
@@ -130,13 +159,14 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
               <TableRow>
                 <TableHead>Member</TableHead>
                 <TableHead className="hidden sm:table-cell">Rank</TableHead>
+                <TableHead>Quota</TableHead>
                 <TableHead className="text-right">This week</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.map((row) => (
-                <TableRow key={row.member_id}>
+                <TableRow key={`${row.member_id}:${row.quota_type_id}`}>
                   <TableCell>
                     <PersonCell
                       person={{
@@ -153,6 +183,7 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
                   <TableCell className="hidden sm:table-cell">
                     <RankBadge rank={row.crew_rank} />
                   </TableCell>
+                  <TableCell className="text-sm">{row.quota_type_name}</TableCell>
                   <TableCell className="tabular text-right font-medium">
                     {row.approved_quantity}
                     <span className="text-muted-foreground font-normal">
