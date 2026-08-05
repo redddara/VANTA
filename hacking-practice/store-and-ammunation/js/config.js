@@ -50,6 +50,53 @@ window.PRACTICE_CONFIG = {
       maxMissedNotes: 3
     }
   },
+  ammoThermiteCustom: {
+    action: "startRhythm",
+    title: "Ammunation — Thermite (Custom / Beginner)",
+    description: "Forgiving practice · 1×–3× speed · 3× = true in-game speed",
+    customizable: true,
+    params: {
+      lanes: 6,
+      keys: ["A", "S", "D", "J", "K", "L"],
+      speedTier: 1,
+      forgiving: true,
+      unlimited: true,
+      difficulty: "normal"
+    },
+    settings: [
+      {
+        key: "speedTier",
+        label: "Speed",
+        type: "select",
+        options: [
+          { value: "1", label: "1× — slowest (learn keys)" },
+          { value: "2", label: "2× — medium" },
+          { value: "3", label: "3× — true in-game speed" }
+        ],
+        default: "1"
+      },
+      {
+        key: "forgiving",
+        label: "Forgiving mode",
+        type: "select",
+        options: [
+          { value: "yes", label: "Yes — never fail on wrong/miss" },
+          { value: "no", label: "No — fail like in-game (1 wrong · 3 misses)" }
+        ],
+        default: "yes"
+      },
+      {
+        key: "sessionType",
+        label: "Session goal",
+        type: "select",
+        options: [
+          { value: "unlimited", label: "Unlimited hits (practice until Esc)" },
+          { value: "goal45", label: "Win at 45 hits (still forgiving)" }
+        ],
+        default: "unlimited"
+      }
+    ]
+  },
   ammoCrate: {
     action: "startNumberedSequence",
     title: "Ammunation — Crate (Crowbar)",

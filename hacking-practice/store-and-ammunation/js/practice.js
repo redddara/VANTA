@@ -68,8 +68,11 @@
 
     awaitingRetry = true;
 
-    if (detail && detail.unlimited && !success) {
-      var msg = "Score: " + (detail.notesHit || 0);
+    if (detail && (detail.unlimited || detail.forgiving) && !success) {
+      var msg = "Hits: " + (detail.notesHit || 0);
+      if (detail.speedTier) {
+        msg += " · Speed " + detail.speedTier + "×";
+      }
       if (detail.isNewBest) {
         msg += " — NEW BEST!";
       } else if (detail.bestScore > 0) {
@@ -205,6 +208,42 @@
         params.keyPool = preset.keyPool.slice();
 
         params.keyHintText = preset.keyHintText;
+
+        return;
+
+      }
+
+      if (setting.key === "speedTier") {
+
+        params.speedTier = Number(raw);
+
+        return;
+
+      }
+
+      if (setting.key === "forgiving") {
+
+        params.forgiving = raw === "yes";
+
+        return;
+
+      }
+
+      if (setting.key === "sessionType") {
+
+        if (raw === "unlimited") {
+
+          params.unlimited = true;
+
+          delete params.requiredNotes;
+
+        } else {
+
+          params.unlimited = false;
+
+          params.requiredNotes = 45;
+
+        }
 
         return;
 
@@ -376,7 +415,7 @@
 
     ammoGrid.className = "game-grid";
 
-    ["ammoThermite", "ammoThermiteUnlimited", "ammoCrate"].forEach((key) => ammoGrid.appendChild(createCard(key)));
+    ["ammoThermite", "ammoThermiteUnlimited", "ammoThermiteCustom", "ammoCrate"].forEach((key) => ammoGrid.appendChild(createCard(key)));
 
     ammoSection.appendChild(ammoGrid);
 

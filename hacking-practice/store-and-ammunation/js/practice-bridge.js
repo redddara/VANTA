@@ -39,6 +39,8 @@
             body,
             notesHit: body.notesHit,
             unlimited: body.unlimited,
+            forgiving: body.forgiving,
+            speedTier: body.speedTier,
             bestScore: body.bestScore,
             isNewBest: body.isNewBest
           }

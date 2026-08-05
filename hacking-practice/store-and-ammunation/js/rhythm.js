@@ -37,6 +37,18 @@ const scoreValues = {
 
 const BEST_KEY = "thermiteUnlimitedBest";
 
+const TRUE_NOTE_SPEED = 350;
+const TRUE_NOTE_SPAWN = 400;
+
+function applySpeedTier(tier) {
+  const t = Math.max(1, Math.min(3, Number(tier) || 3));
+  return {
+    noteSpeed: TRUE_NOTE_SPEED * (t / 3),
+    noteSpawnRate: TRUE_NOTE_SPAWN * (3 / t),
+    speedTier: t
+  };
+}
+
 let rhythmConfig = {
   lanes: 4,
   keys: ["A", "S", "D", "F"],
@@ -46,11 +58,17 @@ let rhythmConfig = {
   maxWrongKeys: 5,
   maxMissedNotes: 3,
   difficulty: "normal",
-  unlimited: false
+  unlimited: false,
+  forgiving: false,
+  speedTier: 3
 };
 
 function isRhythmUnlimited() {
   return rhythmConfig.unlimited === true;
+}
+
+function isForgiving() {
+  return rhythmConfig.forgiving === true;
 }
 
 function getBestScore() {
@@ -74,49 +92,89 @@ function keyFromEvent(e) {
 }
 
 function ensureUnlimitedHud() {
-  if (!isRhythmUnlimited()) {
+  const showHud = isRhythmUnlimited() || isForgiving();
+
+  if (!showHud) {
     $("#rhythm-unlimited-hud").remove();
-    $("#rhythm-container").removeClass("rhythm-unlimited-mode");
+    $("#rhythm-container").removeClass("rhythm-unlimited-mode rhythm-forgiving-mode");
     return;
   }
 
   $("#rhythm-container").addClass("rhythm-unlimited-mode");
-  $("#rhythm-timer-label").html('Score: <span id="rhythm-progress">0</span>');
+  if (isForgiving()) {
+    $("#rhythm-container").addClass("rhythm-forgiving-mode");
+  } else {
+    $("#rhythm-container").removeClass("rhythm-forgiving-mode");
+  }
 
-  if ($("#rhythm-unlimited-hud").length) return;
+  if (isRhythmUnlimited() || isForgiving()) {
+    $("#rhythm-timer-label").html('Hits: <span id="rhythm-progress">0</span>');
+  }
+
+  if ($("#rhythm-unlimited-hud").length) {
+    updateUnlimitedHud();
+    return;
+  }
+
+  const metaLimit = isForgiving()
+    ? 'Wrong <strong id="rhythm-live-wrong">0</strong> · Misses <strong id="rhythm-live-misses">0</strong> · Speed <strong id="rhythm-live-speed">1×</strong>'
+    : 'Misses <strong id="rhythm-live-misses">0</strong>/3 · Wrong <strong id="rhythm-live-wrong">0</strong>/1';
 
   const hud = $(
     '<div id="rhythm-unlimited-hud" class="rhythm-unlimited-hud">' +
-      '<div class="rhythm-unlimited-score"><span id="rhythm-live-score">0</span><small>SCORE</small></div>' +
+      '<div class="rhythm-unlimited-score"><span id="rhythm-live-score">0</span><small>HITS</small></div>' +
       '<div class="rhythm-unlimited-meta">Best <strong id="rhythm-best-score">0</strong> · ' +
-      'Misses <strong id="rhythm-live-misses">0</strong>/3 · Wrong <strong id="rhythm-live-wrong">0</strong>/1</div>' +
+      metaLimit +
+      "</div>" +
       "</div>"
   );
   $("#rhythm-container .rhythm-display").before(hud);
 }
 
 function updateUnlimitedHud() {
-  if (!isRhythmUnlimited()) return;
+  if (!isRhythmUnlimited() && !isForgiving()) return;
   $("#rhythm-live-score").text(notesHit);
   $("#rhythm-best-score").text(getBestScore());
   $("#rhythm-live-misses").text(missedNotes);
   $("#rhythm-live-wrong").text(wrongKeyCount);
+  if ($("#rhythm-live-speed").length) {
+    $("#rhythm-live-speed").text(rhythmConfig.speedTier + "×");
+  }
   $("#rhythm-progress").text(notesHit);
-  $(".rhythm-progress").css("width", "100%");
+  $(".rhythm-progress").css("width", isRhythmUnlimited() || isForgiving() ? "100%" : undefined);
 }
 
 function setupRhythmGame(config) {
+  const baseTiming = { perfect: 10, great: 15, okay: 20 };
+  Object.keys(timingWindows).forEach(function (key) {
+    timingWindows[key] = baseTiming[key];
+  });
+
   rhythmConfig = {
     lanes: config?.lanes || 4,
     keys: config?.keys || ["A", "S", "D", "F"],
     noteSpeed: config?.noteSpeed || 300,
     noteSpawnRate: config?.noteSpawnRate || 1000,
     requiredNotes: config?.requiredNotes || 20,
-    maxWrongKeys: config?.maxWrongKeys || 5,
-    maxMissedNotes: config?.maxMissedNotes || 3,
+    maxWrongKeys: config?.maxWrongKeys ?? 5,
+    maxMissedNotes: config?.maxMissedNotes ?? 3,
     difficulty: config?.difficulty || "normal",
-    unlimited: config?.unlimited === true
+    unlimited: config?.unlimited === true,
+    forgiving: config?.forgiving === true || config?.forgiving === "yes",
+    speedTier: Number(config?.speedTier) || 3
   };
+
+  if (config?.speedTier != null) {
+    const speeds = applySpeedTier(config.speedTier);
+    rhythmConfig.noteSpeed = speeds.noteSpeed;
+    rhythmConfig.noteSpawnRate = speeds.noteSpawnRate;
+    rhythmConfig.speedTier = speeds.speedTier;
+  }
+
+  if (rhythmConfig.forgiving) {
+    rhythmConfig.maxWrongKeys = Infinity;
+    rhythmConfig.maxMissedNotes = Infinity;
+  }
 
   if (rhythmConfig.difficulty === "easy") {
     Object.keys(timingWindows).forEach(function (key) {
@@ -125,6 +183,12 @@ function setupRhythmGame(config) {
   } else if (rhythmConfig.difficulty === "hard") {
     Object.keys(timingWindows).forEach(function (key) {
       timingWindows[key] *= 0.7;
+    });
+  }
+
+  if (rhythmConfig.forgiving && rhythmConfig.difficulty === "normal") {
+    Object.keys(timingWindows).forEach(function (key) {
+      timingWindows[key] *= 1.35;
     });
   }
 
@@ -146,7 +210,7 @@ function setupRhythmGame(config) {
 
   $("#rhythm-key-hint").text("Press " + rhythmKeys.join(", ") + " to hit the notes");
 
-  if (!isRhythmUnlimited()) {
+  if (!isRhythmUnlimited() && !isForgiving()) {
     $("#rhythm-timer-label").html('Progress: <span id="rhythm-progress">0</span>%');
   }
 
@@ -214,10 +278,20 @@ function moveNotes() {
       showFeedback(note.lane, "miss");
       breakCombo();
       missedNotes++;
-      $("#rhythm-message").text("Missed " + missedNotes + "/" + maxMissedNotes + " notes allowed");
+      if (isForgiving()) {
+        $("#rhythm-message").text(
+          "Missed note (" +
+            missedNotes +
+            ") — keep going · Speed " +
+            rhythmConfig.speedTier +
+            "× · Esc to stop"
+        );
+      } else {
+        $("#rhythm-message").text("Missed " + missedNotes + "/" + maxMissedNotes + " notes allowed");
+      }
       updateUnlimitedHud();
 
-      if (missedNotes >= maxMissedNotes) {
+      if (Number.isFinite(maxMissedNotes) && missedNotes >= maxMissedNotes) {
         stopRhythmGame(false);
       }
 
@@ -288,7 +362,15 @@ function handleRhythmKeyPress(e) {
     showFeedback(laneIndex, "miss");
     updateUnlimitedHud();
 
-    if (wrongKeyCount >= maxWrongKeys) {
+    if (isForgiving()) {
+      $("#rhythm-message").text(
+        "Wrong key (" +
+          wrongKeyCount +
+          ") — keep going · Speed " +
+          rhythmConfig.speedTier +
+          "× · Esc to stop"
+      );
+    } else if (Number.isFinite(maxWrongKeys) && wrongKeyCount >= maxWrongKeys) {
       stopRhythmGame(false);
     }
   }
@@ -328,8 +410,11 @@ function showFeedback(lane, timing) {
 }
 
 function updateProgressBar() {
-  if (isRhythmUnlimited()) {
+  if (isRhythmUnlimited() || isForgiving()) {
     updateUnlimitedHud();
+    if (!isRhythmUnlimited() && isForgiving() && notesHit >= requiredNotes) {
+      stopRhythmGame(true);
+    }
     return;
   }
 
@@ -353,13 +438,27 @@ function resetRhythmGame() {
   rhythmNotes = [];
   gameProgress = 0;
 
-  $(".rhythm-progress").css("width", isRhythmUnlimited() ? "100%" : "0%");
-  $("#rhythm-progress").text(isRhythmUnlimited() ? "0" : "0");
-  $("#rhythm-message").text(
-    isRhythmUnlimited()
-      ? "Unlimited — keep hitting notes until you fail"
-      : "Hit the notes in sync with the beat"
-  );
+  $(".rhythm-progress").css("width", isRhythmUnlimited() || isForgiving() ? "100%" : "0%");
+  $("#rhythm-progress").text(isRhythmUnlimited() || isForgiving() ? "0" : "0");
+  if (isForgiving()) {
+    $("#rhythm-message").text(
+      isRhythmUnlimited()
+        ? "Beginner practice — mistakes won't end the round · Speed " +
+            rhythmConfig.speedTier +
+            "× (3× = true speed) · Esc to stop"
+        : "Forgiving mode — reach " +
+            requiredNotes +
+            " hits to win · Speed " +
+            rhythmConfig.speedTier +
+            "× · mistakes won't fail you"
+    );
+  } else {
+    $("#rhythm-message").text(
+      isRhythmUnlimited()
+        ? "Unlimited — keep hitting notes until you fail"
+        : "Hit the notes in sync with the beat"
+    );
+  }
   updateUnlimitedHud();
 }
 
@@ -399,7 +498,7 @@ function stopRhythmGame(success) {
   if (success) {
     $("#rhythm-message").text("SYNCHRONIZATION COMPLETE! Circuit stabilized.");
   } else {
-    if (isRhythmUnlimited()) {
+    if (isRhythmUnlimited() || (isForgiving() && !success)) {
       roundIsNewBest = notesHit > roundBestScore;
       if (roundIsNewBest) {
         setBestScore(notesHit);
@@ -407,9 +506,11 @@ function stopRhythmGame(success) {
       }
       updateUnlimitedHud();
       $("#rhythm-message").text(
-        "Score: " +
+        (success ? "Goal reached! " : "") +
+          "Hits: " +
           notesHit +
-          (roundIsNewBest ? " — NEW BEST!" : roundBestScore > 0 ? " · Best: " + roundBestScore : "")
+          (roundIsNewBest ? " — NEW BEST!" : roundBestScore > 0 ? " · Best: " + roundBestScore : "") +
+          (isForgiving() && isRhythmUnlimited() ? " · Esc or Space to continue" : "")
       );
     } else if (missedNotes >= maxMissedNotes) {
       $("#rhythm-message").text("SYNCHRONIZATION FAILED! Too many missed notes.");
@@ -430,6 +531,8 @@ function stopRhythmGame(success) {
       totalNotes: totalNotes,
       accuracy: notesHit > 0 ? Math.round((notesHit / totalNotes) * 100) : 0,
       unlimited: isRhythmUnlimited(),
+      forgiving: isForgiving(),
+      speedTier: rhythmConfig.speedTier,
       bestScore: roundBestScore,
       isNewBest: roundIsNewBest
     };

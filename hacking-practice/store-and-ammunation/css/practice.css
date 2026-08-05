@@ -339,3 +339,7 @@ body.practice-site .game-container.active {
   border: 1px solid #ff4444;
   color: #ff6b6b;
 }
+
+#rhythm-container.rhythm-forgiving-mode .rhythm-unlimited-meta {
+  color: rgba(255, 255, 255, 0.72);
+}
