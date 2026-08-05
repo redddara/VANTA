@@ -1,15 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Banknote, Clock, Coins, ScrollText, Shield, Star } from "lucide-react";
+import {
+  Banknote,
+  Check,
+  Clock,
+  Coins,
+  Layers,
+  ScrollText,
+  Shield,
+  X,
+} from "lucide-react";
 
+import { CraftingUnlockBadges } from "@/components/reputation/crafting-unlocks";
+import { TierPayouts } from "@/components/reputation/tier-payouts";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PersonCell } from "@/components/shared/person-cell";
-import { RepDelta } from "@/components/shared/rep-delta";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,14 +30,20 @@ import {
 import { requireSession } from "@/lib/auth";
 import { displayName } from "@/lib/display";
 import { formatDateTime, formatMoney, formatRelative } from "@/lib/format";
-import { MEMBER_SUMMARY_SELECT, REMIT_SELECT, REPUTATION_SELECT } from "@/lib/queries";
+import {
+  MEMBER_SUMMARY_SELECT,
+  REMIT_SELECT,
+  WEEKLY_COMPLIANCE_SELECT,
+} from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  MemberSummary,
-  RemitLogWithPeople,
-  RemitStatus,
-  ReputationEntryWithPeople,
+import {
+  canViewRoster,
+  type MemberSummary,
+  type RemitLogWithPeople,
+  type RemitStatus,
+  type WeeklyCompliance,
 } from "@/lib/types/app";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -36,21 +51,14 @@ export default async function DashboardPage() {
   const { profile } = await requireSession();
   const supabase = await createClient();
 
-  // RLS scopes these to the caller: a member sees only their own rows here even
-  // though the query itself has no ownership filter beyond member_id.
-  const [summaryResult, reputationResult, remitResult] = await Promise.all([
+  const isProspect = !canViewRoster(profile.crew_rank);
+
+  const [summaryResult, remitResult, complianceResult] = await Promise.all([
     supabase
       .from("member_summary")
       .select(MEMBER_SUMMARY_SELECT)
       .eq("id", profile.id)
       .maybeSingle<MemberSummary>(),
-    supabase
-      .from("reputation_entries")
-      .select(REPUTATION_SELECT)
-      .eq("member_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .returns<ReputationEntryWithPeople[]>(),
     supabase
       .from("remit_logs")
       .select(REMIT_SELECT)
@@ -58,42 +66,79 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(50)
       .returns<RemitLogWithPeople[]>(),
+    supabase
+      .from("member_weekly_compliance")
+      .select(WEEKLY_COMPLIANCE_SELECT)
+      .eq("member_id", profile.id)
+      .maybeSingle<WeeklyCompliance>(),
   ]);
 
   const summary = summaryResult.data;
-  const reputation = reputationResult.data ?? [];
   const remit = remitResult.data ?? [];
+  const compliance = complianceResult.data;
 
-  const totalRep = Number(summary?.total_rep ?? 0);
   const approvedRemit = Number(summary?.total_approved_remit ?? 0);
   const pendingCount = Number(summary?.pending_remit_count ?? 0);
+  const hasTier = Boolean(summary?.current_tier_id);
+  const quotaMet = compliance?.quota_met ?? false;
 
   return (
     <>
       <PageHeader
         title={displayName(profile)}
-        description={`${profile.crew_rank ?? "Recruit"} · joined ${formatRelative(profile.created_at)}`}
+        description={`${profile.crew_rank} · joined ${formatRelative(profile.created_at)}`}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/roster">View roster</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/remit/mine">Log remit</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/rep-tiers">Rep ladder</Link>
+            </Button>
+            {!isProspect && (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/roster">View roster</Link>
+              </Button>
+            )}
+          </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Reputation"
-          value={totalRep > 0 ? `+${totalRep}` : String(totalRep)}
-          icon={Star}
-          tone={totalRep > 0 ? "positive" : totalRep < 0 ? "negative" : "default"}
-          hint={`${reputation.length} ${reputation.length === 1 ? "entry" : "entries"} on record`}
+          label="Weekly quota"
+          value={
+            compliance
+              ? `${compliance.approved_quantity}/${compliance.quota_amount}`
+              : "—"
+          }
+          icon={quotaMet ? Check : X}
+          tone={quotaMet ? "positive" : "negative"}
+          hint={
+            compliance
+              ? quotaMet
+                ? `${compliance.quota_type_name} met this week`
+                : `${compliance.quota_type_name} still short`
+              : "Quota not configured"
+          }
         />
         <StatCard
-          label="Approved remit"
+          label="Reputation tier"
+          value={summary?.tier_label ?? "Unassigned"}
+          icon={Layers}
+          tone={hasTier ? "accent" : "default"}
+          hint={
+            hasTier
+              ? `Level ${summary?.tier_level_order}`
+              : "Staff still need to place you on the ladder"
+          }
+        />
+        <StatCard
+          label="Approved cash"
           value={formatMoney(approvedRemit)}
           icon={Coins}
           tone="accent"
-          hint="Lifetime contributions credited to you"
+          hint="Lifetime cash remits credited to you"
         />
         <StatCard
           label="Awaiting review"
@@ -107,53 +152,33 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-2">
+      <div className={cn("mt-8 grid gap-6", "xl:grid-cols-2")}>
         <Card className="gap-0 overflow-hidden py-0">
           <CardHeader className="flex-row items-center gap-2 border-b py-4">
             <Shield className="text-muted-foreground size-4" />
-            <CardTitle className="text-base">Reputation history</CardTitle>
+            <CardTitle className="text-base">Your tier</CardTitle>
           </CardHeader>
 
-          {reputation.length === 0 ? (
+          {!hasTier || !summary ? (
             <EmptyState
-              icon={Star}
-              title="No reputation yet"
-              description="Officers add reputation when you contribute. Every entry comes with a reason."
+              icon={Layers}
+              title="No tier assigned"
+              description="When staff place you on the ladder, your payouts and crafting unlocks show up here."
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">Rep</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="hidden sm:table-cell">Given by</TableHead>
-                  <TableHead className="text-right">When</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reputation.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>
-                      <RepDelta points={entry.points} />
-                    </TableCell>
-                    <TableCell className="max-w-xs">
-                      <p className="text-sm break-words">{entry.reason}</p>
-                      <p className="text-muted-foreground mt-1 text-xs sm:hidden">
-                        {displayName(entry.giver ?? {})}
-                      </p>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <PersonCell person={entry.giver} compact />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-right text-xs whitespace-nowrap">
-                      <time dateTime={entry.created_at} title={formatDateTime(entry.created_at)}>
-                        {formatRelative(entry.created_at)}
-                      </time>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <CardContent className="space-y-5 py-5">
+              <div>
+                <p className="text-lg font-semibold">{summary.tier_label}</p>
+                <p className="text-muted-foreground text-sm">
+                  Level {summary.tier_level_order}
+                </p>
+              </div>
+              <TierPayouts tier={summary} />
+              <div>
+                <p className="text-muted-foreground mb-2 text-xs">Crafting</p>
+                <CraftingUnlockBadges tier={summary} />
+              </div>
+            </CardContent>
           )}
         </Card>
 
@@ -167,14 +192,14 @@ export default async function DashboardPage() {
             <EmptyState
               icon={ScrollText}
               title="No remit logged"
-              description="When an officer records a contribution for you it shows up here, pending until an admin approves it."
+              description="Log contracts and materials you hand over — they stay pending until an admin approves them."
             />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Amount</TableHead>
-                  <TableHead className="hidden sm:table-cell">Description</TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead className="hidden sm:table-cell">Cash</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">When</TableHead>
                 </TableRow>
@@ -182,21 +207,16 @@ export default async function DashboardPage() {
               <TableBody>
                 {remit.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell className="tabular font-medium whitespace-nowrap">
-                      {formatMoney(log.amount)}
-                      <p className="text-muted-foreground mt-1 max-w-40 truncate text-xs font-normal sm:hidden">
-                        {log.description || "No description"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="hidden max-w-xs sm:table-cell">
-                      <p className="text-muted-foreground text-sm break-words">
-                        {log.description || "\u2014"}
-                      </p>
-                      {log.submitter && (
-                        <p className="text-muted-foreground/70 mt-1 text-xs">
-                          by {displayName(log.submitter)}
+                    <TableCell className="font-medium">
+                      {log.quantity}× {log.remit_type?.name ?? "Remit"}
+                      {log.description ? (
+                        <p className="text-muted-foreground mt-1 max-w-48 truncate text-xs font-normal">
+                          {log.description}
                         </p>
-                      )}
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="tabular text-muted-foreground hidden sm:table-cell">
+                      {log.amount != null ? formatMoney(log.amount) : "\u2014"}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={log.status as RemitStatus} />

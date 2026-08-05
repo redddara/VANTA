@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; stale?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, stale } = await searchParams;
   const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : undefined;
 
   return (
@@ -28,6 +28,14 @@ export default async function LoginPage({
 
         <div className="vanta-hairline my-8 h-px w-full" />
 
+        {stale ? (
+          <p className="border-destructive/40 bg-destructive/10 text-muted-foreground mb-6 rounded-md border px-4 py-3 text-center text-sm leading-relaxed text-balance">
+            You are signed in to Discord but the portal has no profile for that
+            account. Sign in again, and if this keeps happening ask an admin to
+            check your membership.
+          </p>
+        ) : null}
+
         <p className="text-muted-foreground mb-6 text-center text-sm leading-relaxed text-balance">
           Sign in with the Discord account you use in the crew server. Your
           profile is created automatically on first login.
@@ -37,7 +45,7 @@ export default async function LoginPage({
 
         <p className="text-muted-foreground/70 mt-8 text-center text-xs leading-relaxed">
           Access is limited to Vanta members. If you sign in and the portal says
-          your account is inactive, ask an officer to reactivate you.
+          your account is inactive, ask an admin to reactivate you.
         </p>
       </div>
     </main>

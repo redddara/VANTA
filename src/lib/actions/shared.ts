@@ -9,7 +9,7 @@ export type ActionResult =
  * Turns a Postgres/PostgREST failure into something a crew member can act on.
  *
  * Permission failures are expected here rather than exceptional: the UI hides
- * actions a role cannot perform, so anything that reaches this path is either a
+ * actions a rank cannot perform, so anything that reaches this path is either a
  * stale page or someone poking at the API directly.
  */
 export function toActionError(error: PostgrestError): string {
@@ -20,7 +20,7 @@ export function toActionError(error: PostgrestError): string {
 
   switch (error.code) {
     case "42501":
-      return "Your role does not allow that. Try refreshing the page.";
+      return "Your rank does not allow that. Try refreshing the page.";
     case "23505":
       return "That record already exists.";
     case "23503":
@@ -32,7 +32,7 @@ export function toActionError(error: PostgrestError): string {
   }
 
   if (error.message.toLowerCase().includes("row-level security")) {
-    return "Your role does not allow that. Try refreshing the page.";
+    return "Your rank does not allow that. Try refreshing the page.";
   }
 
   return error.message || "Something went wrong. Please try again.";

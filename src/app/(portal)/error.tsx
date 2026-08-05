@@ -22,7 +22,7 @@ export default function PortalError({
         <AlertTriangle className="size-5" />
       </div>
 
-      <h1 className="font-[family-name:var(--font-display)] text-xl tracking-wide uppercase">
+      <h1 className="font-display text-xl tracking-wide uppercase">
         Something broke
       </h1>
 
@@ -32,7 +32,7 @@ export default function PortalError({
       </p>
 
       {error.digest && (
-        <p className="text-muted-foreground/60 mt-3 font-[family-name:var(--font-geist-mono)] text-xs">
+        <p className="text-muted-foreground/60 mt-3 font-mono text-xs">
           {error.digest}
         </p>
       )}

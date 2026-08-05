@@ -46,8 +46,7 @@ export function ProfileForm({ ingameName }: { ingameName: string }) {
           className="h-11"
         />
         <p className="text-muted-foreground text-xs">
-          This is what the crew sees on the roster and on every remit and
-          reputation entry.
+          This is what the crew sees on the roster and on every remit entry.
         </p>
       </div>
 

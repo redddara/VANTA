@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Discord sends the member back here with a one-time code. Exchanging it sets
- * the session cookie; the profiles row is created by the auth.users trigger, so
- * there is nothing to provision on this side.
+ * the session cookie. The profiles row is normally created by the auth.users
+ * trigger; vanta_ensure_profile heals the case where the account already exists
+ * but the profile row never landed.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -27,6 +28,16 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.redirect(
       `${origin}/auth/auth-code-error?reason=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  // The auth.users trigger creates the profile on first Discord insert. If that
+  // ever missed (or the row was wiped), a later sign-in would leave the member
+  // signed in with nothing to load — heal it here before sending them in.
+  const { error: profileError } = await supabase.rpc("vanta_ensure_profile");
+  if (profileError) {
+    return NextResponse.redirect(
+      `${origin}/auth/auth-code-error?reason=${encodeURIComponent(profileError.message)}`,
     );
   }
 

@@ -59,18 +59,32 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // getUser() above may have rotated the refresh token, in which case the new
+  // cookies are on `response`. A redirect built from scratch would drop them and
+  // leave the browser replaying a token Supabase has already spent, so every
+  // later request would fail and bounce here again — an endless redirect.
+  function redirectKeepingCookies(url: URL) {
+    const redirect = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie);
+    }
+    return redirect;
+  }
+
   if (!user && !isPublicPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(redirectUrl);
+    return redirectKeepingCookies(redirectUrl);
   }
 
-  if (user && pathname === "/login") {
+  // `stale` means a page just turned this user away for having no profile row.
+  // Bouncing them back would loop.
+  if (user && pathname === "/login" && !request.nextUrl.searchParams.has("stale")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
+    return redirectKeepingCookies(redirectUrl);
   }
 
   return response;

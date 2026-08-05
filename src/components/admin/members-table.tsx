@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Search, Users } from "lucide-react";
 
 import { MemberEditorDialog } from "@/components/admin/member-editor-dialog";
-import { RoleBadge } from "@/components/nav/role-badge";
+import { RankBadge } from "@/components/nav/rank-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,7 @@ export function MembersTable({
       )
       .filter((m) =>
         needle
-          ? [m.ingame_name, m.discord_username, m.crew_rank, m.role]
+          ? [m.ingame_name, m.discord_username, m.crew_rank]
               .filter(Boolean)
               .some((field) => field!.toLowerCase().includes(needle))
           : true,
@@ -88,7 +88,7 @@ export function MembersTable({
         <div
           role="group"
           aria-label="Filter by status"
-          className="bg-secondary/60 inline-flex w-fit rounded-lg p-[3px]"
+          className="bg-secondary/60 inline-flex w-fit rounded-lg p-0.75"
         >
           {FILTERS.map((option) => (
             <button
@@ -125,8 +125,7 @@ export function MembersTable({
               <TableRow>
                 <TableHead>Member</TableHead>
                 <TableHead className="hidden sm:table-cell">Rank</TableHead>
-                <TableHead className="hidden sm:table-cell">Role</TableHead>
-                <TableHead className="text-right">Rep</TableHead>
+                <TableHead>Rep tier</TableHead>
                 <TableHead className="hidden text-right lg:table-cell">
                   Approved remit
                 </TableHead>
@@ -136,8 +135,6 @@ export function MembersTable({
 
             <TableBody>
               {visible.map((member) => {
-                const rep = Number(member.total_rep);
-
                 return (
                   <TableRow
                     key={member.id}
@@ -149,39 +146,26 @@ export function MembersTable({
                         subtitle={member.discord_username}
                       />
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
-                        <Badge variant="secondary" className="text-[0.7rem]">
-                          {member.crew_rank ?? "Recruit"}
-                        </Badge>
-                        <RoleBadge role={member.role} />
+                        <RankBadge rank={member.crew_rank} />
                         {!member.is_active && (
                           <Badge variant="outline">Inactive</Badge>
                         )}
                       </div>
-                    </TableCell>
-
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="secondary">
-                        {member.crew_rank ?? "Recruit"}
-                      </Badge>
                     </TableCell>
 
                     <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-1.5">
-                        <RoleBadge role={member.role} />
+                        <RankBadge rank={member.crew_rank} />
                         {!member.is_active && (
                           <Badge variant="outline">Inactive</Badge>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell
-                      className={cn(
-                        "tabular text-right font-semibold",
-                        rep > 0 && "text-[var(--success)]",
-                        rep < 0 && "text-destructive",
+                    <TableCell className="text-sm font-medium">
+                      {member.tier_label ?? (
+                        <span className="text-muted-foreground font-normal">—</span>
                       )}
-                    >
-                      {rep > 0 ? `+${rep}` : rep}
                     </TableCell>
 
                     <TableCell className="tabular text-muted-foreground hidden text-right lg:table-cell">

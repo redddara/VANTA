@@ -26,14 +26,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { updateMember } from "@/lib/actions/members";
 import { displayName } from "@/lib/display";
-import { CREW_RANKS, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from "@/lib/constants";
-import type { MemberSummary, Role } from "@/lib/types/app";
+import { RANKS, RANK_DESCRIPTIONS } from "@/lib/constants";
+import { isAdmin, isRank, type MemberSummary, type Rank } from "@/lib/types/app";
 
-/** Falls back to the lowest rank if the stored value is not in CREW_RANKS. */
-function normaliseRank(rank: string | null): string {
-  return CREW_RANKS.includes(rank as (typeof CREW_RANKS)[number])
-    ? (rank as string)
-    : CREW_RANKS[0];
+/** Falls back to the lowest rank if the stored value is not on the ladder. */
+function normaliseRank(rank: string | null): Rank {
+  return isRank(rank) ? rank : RANKS[0];
 }
 
 function EditorBody({
@@ -48,22 +46,17 @@ function EditorBody({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [role, setRole] = useState<Role>(member.role);
-  const [crewRank, setCrewRank] = useState(normaliseRank(member.crew_rank));
+  const [rank, setRank] = useState<Rank>(normaliseRank(member.crew_rank));
   const [isActive, setIsActive] = useState(member.is_active);
 
   const name = displayName(member);
-  const dirty =
-    role !== member.role ||
-    crewRank !== member.crew_rank ||
-    isActive !== member.is_active;
+  const dirty = rank !== member.crew_rank || isActive !== member.is_active;
 
   function save() {
     startTransition(async () => {
       const result = await updateMember({
         id: member.id,
-        role,
-        crewRank,
+        rank,
         isActive,
       });
 
@@ -94,38 +87,25 @@ function EditorBody({
 
       <div className="grid gap-5 py-1">
         <div className="grid gap-2">
-          <Label htmlFor="member-role">Portal role</Label>
-          <Select value={role} onValueChange={(value) => setRole(value as Role)}>
-            <SelectTrigger id="member-role" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {ROLE_LABELS[option]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-muted-foreground text-xs">{ROLE_DESCRIPTIONS[role]}</p>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="member-rank">Crew rank</Label>
-          <Select value={crewRank} onValueChange={setCrewRank}>
+          <Label htmlFor="member-rank">Rank</Label>
+          <Select
+            value={rank}
+            onValueChange={(value) => setRank(value as Rank)}
+          >
             <SelectTrigger id="member-rank" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CREW_RANKS.map((rank) => (
-                <SelectItem key={rank} value={rank}>
-                  {rank}
+              {/* Highest first: promoting is the common case. */}
+              {[...RANKS].reverse().map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">
-            In-character title only. It grants no portal permissions.
+            {RANK_DESCRIPTIONS[rank]}
           </p>
         </div>
 
@@ -146,9 +126,9 @@ function EditorBody({
           />
         </div>
 
-        {isSelf && (
+        {isSelf && !isAdmin(rank) && (
           <p className="text-warning border-warning/30 bg-warning/10 rounded-md border p-3 text-xs">
-            This is your own account. Removing your admin role will lock you out
+            This is your own account. Dropping below Underboss will lock you out
             of these controls.
           </p>
         )}

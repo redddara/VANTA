@@ -56,16 +56,24 @@ npm run db:push             # applies every migration in order
 `db:push` prompts for the database password from step 1.
 
 **Verify it worked.** In the Supabase dashboard open **Table Editor**; you
-should see `profiles`, `remit_logs`, `reputation_entries` and `audit_log`, each
+should see `profiles`, `remit_logs`, `rep_tiers`, `member_rep` and `audit_log`, each
 showing an **RLS enabled** badge. Under **Database → Views** you should see
 `member_summary`.
 
 ### If you would rather not use the CLI
 
-Open **SQL Editor** in the dashboard and run each file in
-`supabase/migrations/` by hand, in filename order. There are five, and they must
-run in sequence because later ones depend on tables and functions created
-earlier.
+**Only on a brand-new project with an empty `public` schema.** Open **SQL
+Editor** in the dashboard and run each file in `supabase/migrations/` by hand,
+in filename order. They must run in sequence because later ones depend on tables
+and functions created earlier.
+
+If the tables already exist, stop here and use `db:push` instead. These files
+create rather than update, so rerunning one against a live schema fails on the
+first object that is already there — `relation "profiles" already exists`, or
+`trigger "on_auth_user_created" ... already exists`. The editor runs the whole
+script as one transaction, so a failure part way leaves nothing behind, but it
+also means nothing you intended was applied. To change an existing database, see
+[Upgrading a database created before ranks](#upgrading-a-database-created-before-ranks).
 
 ---
 
@@ -120,7 +128,7 @@ Go to **Authentication → URL Configuration** and set:
 
 ```
 http://localhost:3000/**
-https://YOUR-VERCEL-DOMAIN.vercel.app/**
+https://vanta-two-xi.vercel.app/**
 ```
 
 The wildcard covers `/auth/callback` plus the `?next=` parameter the portal uses
@@ -138,15 +146,16 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) and click **Sign in with
 Discord**.
 
-**The first account to sign in automatically becomes the admin.** Make sure that
-is you. Every account after that is created as a plain `member`, and you promote
-them from **Admin → Members**.
+**The first account to sign in automatically becomes the Kingpin.** Make sure
+that is you. Every account after that is created as a `Prospect`, who can do
+nothing but log their own remit until you give them a real rank from
+**Admin → Members**.
 
 If you signed in with the wrong account first, fix it in the Supabase SQL
 Editor:
 
 ```sql
-update public.profiles set role = 'admin'
+update public.profiles set crew_rank = 'Kingpin'
 where discord_username = 'your_discord_handle';
 ```
 
@@ -188,20 +197,80 @@ Add that domain to the Supabase Redirect URLs list too.
 There is nothing to maintain: no cron jobs, no workers, no server. Supabase
 handles the database and auth, Vercel rebuilds on every push to `main`.
 
-**Roles**
+**Ranks**
 
-| Role      | Can do                                                                     |
-| --------- | -------------------------------------------------------------------------- |
-| `member`  | See the roster and their own remit and reputation history                   |
-| `officer` | The above, plus submit remit and grant or dock reputation                   |
-| `admin`   | Everything, plus approve remit, manage members, and read the audit log      |
+There is one ladder and rank is the permission, so promoting someone is the only
+way to give them access. Only an admin can set a rank.
+
+| Rank        | Can do                                                                      |
+| ----------- | --------------------------------------------------------------------------- |
+| `Prospect`  | Log their own remit and view the reputation ladder                           |
+| `Operator`  | The above, plus the roster and their current reputation tier                 |
+| `Enforcer`  | The above, plus log remit for any member and set reputation tiers            |
+| `Captain`   | The same as Enforcer                                                        |
+| `Underboss` | Everything: set ranks, approve remit, correct the ledger, read the audit log |
+| `Kingpin`   | The same as Underboss, and the only rank that can appoint another Kingpin    |
+
+Two rules the database enforces no matter what the UI shows: the crew can never
+be left without an active Kingpin, and only a Kingpin can appoint another one.
 
 **Retiring a member** — set them to inactive in **Admin → Members** rather than
 deleting them. They drop off the roster and lose all write access immediately,
-but their remit and reputation history stays intact and their totals still
-appear in the audit trail.
+including the ability to log their own remit, but their remit history and
+reputation tier stay intact.
 
 ---
+
+## Upgrading a database created before ranks
+
+Earlier versions of the portal had a `role` column (`member`/`officer`/`admin`)
+for permissions and a cosmetic `crew_rank` title.
+`20260806000001_rank_permissions.sql` merges the two. It backfills each member's
+rank from their old role — `admin` becomes `Kingpin`, `officer` becomes
+`Captain`, everyone else becomes `Operator` — so nobody gains or loses access in
+the move. Old cosmetic titles are discarded.
+
+The migration finds the policies and triggers it replaces by querying the
+catalog instead of naming them, so it works whether the schema was applied
+through this folder or pasted into the SQL editor.
+
+First check whether Supabase has migration history for your project:
+
+```bash
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase migration list --linked
+```
+
+If the `Remote` column is empty for the five baseline migrations, the schema was
+applied by hand and `db:push` would try to recreate tables that already exist.
+Tell Supabase those five are already in place — `repair` writes the history rows
+without running any SQL:
+
+```bash
+npx supabase migration repair --status applied 20260805000001 20260805000002 20260805000003 20260805000004 20260805000005
+```
+
+`repair` only claims those five ran; it does not check that they did. If the
+hand-built schema is missing something they would have created, the gap is still
+there afterwards. The one that matters is `audit_log`, because every rank and
+status change writes to it, so its absence turns those updates into errors
+rather than missing rows — the rank migration therefore creates the table itself
+if it is not found. To confirm which tables you actually have, open **Table
+Editor** in the dashboard before you push.
+
+Then apply the rank migration and regenerate the types:
+
+```bash
+npm run db:verify   # prove the upgrade path locally first
+npm run db:push     # sends only 20260806000001
+npm run db:types
+```
+
+`db:push` prints a warning about Docker failing to cache a migrations catalog.
+That is only the local cache; the migration itself still applied.
+
+Afterwards, promote your real ranks in **Admin → Members**: the backfill is a
+safe default, not your actual hierarchy.
 
 ## Changing the schema later
 
@@ -214,8 +283,8 @@ npm run db:types    # regenerates src/lib/types/database.types.ts
 ```
 
 `db:verify` runs every migration against an in-process Postgres and asserts that
-the policies still deny what they are supposed to deny. Run it before pushing;
-a broken RLS policy fails open and will not show up in the UI.
+the policies still deny what they are supposed to deny, at every rank. Run it
+before pushing; a broken RLS policy fails open and will not show up in the UI.
 
 ---
 
@@ -235,8 +304,10 @@ An admin set `is_active = false`. Reactivate in **Admin → Members**, or in SQL
 `update public.profiles set is_active = true where discord_username = '...';`
 
 **A page is empty when it should have data**
-Almost always RLS working as intended — the signed-in role cannot see those
-rows. Confirm the account's role in **Admin → Members**.
+Almost always RLS working as intended — the signed-in rank cannot see those
+rows. A `Prospect` in particular sees no roster, but can still view the
+reputation ladder and their own tier if one has been assigned.
+Confirm the account's rank in **Admin → Members**.
 
 **Signed in but no profile row exists**
 The `on_auth_user_created` trigger did not fire, which means migration

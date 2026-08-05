@@ -7,12 +7,20 @@ import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shar
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-const uuid = z.uuid("Pick a member from the list.");
+const uuid = z.uuid("Pick a value from the list.");
+
+const quantity = z
+  .number({ error: "Enter a quantity." })
+  .int("Quantity must be a whole number.")
+  .positive("Quantity must be greater than zero.")
+  .max(100_000, "That quantity is too large.");
 
 const amount = z
-  .number({ error: "Enter an amount." })
+  .number()
   .positive("Amount must be greater than zero.")
-  .max(99_999_999_999, "That amount is too large.");
+  .max(99_999_999_999, "That amount is too large.")
+  .optional()
+  .nullable();
 
 const description = z
   .string()
@@ -20,24 +28,66 @@ const description = z
   .max(500, "Keep the description under 500 characters.")
   .optional();
 
-const SubmitRemitSchema = z.object({ memberId: uuid, amount, description });
-const EditRemitSchema = z.object({ id: uuid, amount, description });
+const SubmitRemitSchema = z.object({
+  memberId: uuid,
+  remitTypeId: uuid,
+  quantity,
+  amount,
+  description,
+});
+
+const SubmitOwnRemitSchema = z.object({
+  remitTypeId: uuid,
+  quantity,
+  amount,
+  description,
+});
+
+const EditRemitSchema = z.object({
+  id: uuid,
+  remitTypeId: uuid,
+  quantity,
+  amount,
+  description,
+});
+
 const ReviewRemitSchema = z.object({
   id: uuid,
   status: z.enum(["pending", "approved", "rejected"]),
 });
 
-/** Refresh every surface that shows remit totals or queues. */
+const RemitTypeSchema = z.object({
+  name: z.string().trim().min(1, "Give the type a name.").max(80),
+  isWeeklyQuota: z.boolean(),
+  quotaAmount: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .nullable(),
+});
+
 function revalidateRemit() {
   revalidatePath("/dashboard");
   revalidatePath("/roster");
+  revalidatePath("/remit/mine");
+  revalidatePath("/remit/new");
+  revalidatePath("/remit/compliance");
   revalidatePath("/admin/remit");
+  revalidatePath("/admin/remit-types");
   revalidatePath("/admin/audit");
+}
+
+function optionalAmount(value: number | null | undefined): number | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return value;
 }
 
 export async function submitRemit(input: {
   memberId: string;
-  amount: number;
+  remitTypeId: string;
+  quantity: number;
+  amount?: number | null;
   description?: string;
 }): Promise<ActionResult> {
   const parsed = SubmitRemitSchema.safeParse(input);
@@ -46,11 +96,11 @@ export async function submitRemit(input: {
   const { profile } = await requireSession();
   const supabase = await createClient();
 
-  // submitted_by must equal auth.uid() or the insert policy rejects the row,
-  // so a contribution can never be logged under someone else's name.
   const { error } = await supabase.from("remit_logs").insert({
     member_id: parsed.data.memberId,
-    amount: parsed.data.amount,
+    remit_type_id: parsed.data.remitTypeId,
+    quantity: parsed.data.quantity,
+    amount: optionalAmount(parsed.data.amount),
     description: parsed.data.description || null,
     submitted_by: profile.id,
   });
@@ -59,6 +109,33 @@ export async function submitRemit(input: {
 
   revalidateRemit();
   return { ok: true, message: "Remit submitted for approval." };
+}
+
+export async function submitOwnRemit(input: {
+  remitTypeId: string;
+  quantity: number;
+  amount?: number | null;
+  description?: string;
+}): Promise<ActionResult> {
+  const parsed = SubmitOwnRemitSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { profile } = await requireSession();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("remit_logs").insert({
+    member_id: profile.id,
+    remit_type_id: parsed.data.remitTypeId,
+    quantity: parsed.data.quantity,
+    amount: optionalAmount(parsed.data.amount),
+    description: parsed.data.description || null,
+    submitted_by: profile.id,
+  });
+
+  if (error) return { ok: false, error: toActionError(error) };
+
+  revalidateRemit();
+  return { ok: true, message: "Remit logged and waiting on an admin." };
 }
 
 export async function reviewRemit(input: {
@@ -70,8 +147,6 @@ export async function reviewRemit(input: {
 
   const supabase = await createClient();
 
-  // reviewed_by is stamped by a database trigger from the JWT, and the change
-  // is written to audit_log by another. Nothing to set here but the status.
   const { error, count } = await supabase
     .from("remit_logs")
     .update({ status: parsed.data.status }, { count: "exact" })
@@ -94,7 +169,9 @@ export async function reviewRemit(input: {
 
 export async function editRemit(input: {
   id: string;
-  amount: number;
+  remitTypeId: string;
+  quantity: number;
+  amount?: number | null;
   description?: string;
 }): Promise<ActionResult> {
   const parsed = EditRemitSchema.safeParse(input);
@@ -105,7 +182,12 @@ export async function editRemit(input: {
   const { error, count } = await supabase
     .from("remit_logs")
     .update(
-      { amount: parsed.data.amount, description: parsed.data.description || null },
+      {
+        remit_type_id: parsed.data.remitTypeId,
+        quantity: parsed.data.quantity,
+        amount: optionalAmount(parsed.data.amount),
+        description: parsed.data.description || null,
+      },
       { count: "exact" },
     )
     .eq("id", parsed.data.id);
@@ -133,4 +215,94 @@ export async function voidRemit(id: string): Promise<ActionResult> {
 
   revalidateRemit();
   return { ok: true, message: "Remit entry voided. A copy is kept in the audit log." };
+}
+
+export async function createRemitType(input: {
+  name: string;
+  isWeeklyQuota: boolean;
+  quotaAmount?: number | null;
+}): Promise<ActionResult> {
+  const parsed = RemitTypeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.isWeeklyQuota && !parsed.data.quotaAmount) {
+    return { ok: false, error: "Weekly quota types need a quota amount." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("remit_types").insert({
+    name: parsed.data.name,
+    is_weekly_quota: parsed.data.isWeeklyQuota,
+    quota_amount: parsed.data.isWeeklyQuota ? parsed.data.quotaAmount : null,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "That type already exists, or another weekly quota is set." };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+
+  revalidateRemit();
+  return { ok: true, message: `Added ${parsed.data.name}.` };
+}
+
+export async function updateRemitType(input: {
+  id: string;
+  name: string;
+  isWeeklyQuota: boolean;
+  quotaAmount?: number | null;
+}): Promise<ActionResult> {
+  const parsed = RemitTypeSchema.extend({ id: uuid }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.isWeeklyQuota && !parsed.data.quotaAmount) {
+    return { ok: false, error: "Weekly quota types need a quota amount." };
+  }
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("remit_types")
+    .update(
+      {
+        name: parsed.data.name,
+        is_weekly_quota: parsed.data.isWeeklyQuota,
+        quota_amount: parsed.data.isWeeklyQuota ? parsed.data.quotaAmount : null,
+      },
+      { count: "exact" },
+    )
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "That type already exists, or another weekly quota is set." };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+  if (!count) return { ok: false, error: "Only an admin can edit remit types." };
+
+  revalidateRemit();
+  return { ok: true, message: `Updated ${parsed.data.name}.` };
+}
+
+export async function deleteRemitType(id: string): Promise<ActionResult> {
+  const parsed = uuid.safeParse(id);
+  if (!parsed.success) return { ok: false, error: "Invalid type." };
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("remit_types")
+    .delete({ count: "exact" })
+    .eq("id", parsed.data);
+
+  if (error) {
+    if (error.code === "23503") {
+      return { ok: false, error: "That type is still used on remit logs." };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+  if (!count) return { ok: false, error: "Only an admin can delete remit types." };
+
+  revalidateRemit();
+  return { ok: true, message: "Remit type removed." };
 }

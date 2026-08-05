@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 import { MemberAvatar } from "@/components/nav/member-avatar";
-import { RoleBadge } from "@/components/nav/role-badge";
+import { RankBadge } from "@/components/nav/rank-badge";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
+import { RANK_DESCRIPTIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -18,7 +18,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Profile"
-        description="Your in-game name is the only thing you can change here. Rank and role are set by admins."
+        description="Your in-game name is the only thing you can change here. Your rank is set by an admin."
       />
 
       <div className="grid max-w-3xl gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
@@ -45,15 +45,9 @@ export default async function SettingsPage() {
 
             <dl className="space-y-2.5 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground text-xs">Crew rank</dt>
+                <dt className="text-muted-foreground text-xs">Rank</dt>
                 <dd>
-                  <Badge variant="secondary">{profile.crew_rank ?? "Recruit"}</Badge>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground text-xs">Portal role</dt>
-                <dd>
-                  <RoleBadge role={profile.role} />
+                  <RankBadge rank={profile.crew_rank} />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -61,6 +55,10 @@ export default async function SettingsPage() {
                 <dd className="text-xs">{formatDate(profile.created_at)}</dd>
               </div>
             </dl>
+
+            <p className="text-muted-foreground border-t pt-3 text-xs">
+              {RANK_DESCRIPTIONS[profile.crew_rank]}
+            </p>
           </CardContent>
         </Card>
       </div>

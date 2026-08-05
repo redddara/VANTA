@@ -15,14 +15,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { isActivePath, type NavItem } from "@/lib/nav";
+import { isActivePath, NAV_GROUP_LABELS, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-
-const GROUP_LABELS: Record<NavItem["group"], string> = {
-  main: "Portal",
-  actions: "Officer",
-  admin: "Admin",
-};
 
 export function MobileNav({
   items,
@@ -63,7 +57,7 @@ export function MobileNav({
           {Object.entries(groups).map(([group, groupItems]) => (
             <div key={group} className="mb-5 last:mb-0">
               <p className="text-muted-foreground/70 px-3 pb-2 text-[0.7rem] font-semibold tracking-widest uppercase">
-                {GROUP_LABELS[group as NavItem["group"]]}
+                {NAV_GROUP_LABELS[group as NavItem["group"]]}
               </p>
               <div className="flex flex-col gap-0.5">
                 {groupItems.map((item) => {

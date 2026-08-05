@@ -10,9 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireStaff } from "@/lib/auth";
 import { formatMoney, formatRelative } from "@/lib/format";
 import { getSelectableMembers } from "@/lib/members";
-import { REMIT_SELECT } from "@/lib/queries";
+import { REMIT_SELECT, REMIT_TYPE_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import type { RemitLogWithPeople, RemitStatus } from "@/lib/types/app";
+import type { RemitLogWithPeople, RemitStatus, RemitType } from "@/lib/types/app";
 
 export const metadata: Metadata = { title: "Submit remit" };
 
@@ -20,8 +20,13 @@ export default async function NewRemitPage() {
   const { profile } = await requireStaff();
   const supabase = await createClient();
 
-  const [members, recent] = await Promise.all([
+  const [members, typesResult, recent] = await Promise.all([
     getSelectableMembers(),
+    supabase
+      .from("remit_types")
+      .select(REMIT_TYPE_SELECT)
+      .order("name")
+      .returns<RemitType[]>(),
     supabase
       .from("remit_logs")
       .select(REMIT_SELECT)
@@ -31,19 +36,20 @@ export default async function NewRemitPage() {
       .returns<RemitLogWithPeople[]>(),
   ]);
 
+  const types = typesResult.data ?? [];
   const recentEntries = recent.data ?? [];
 
   return (
     <>
       <PageHeader
         title="Submit Remit"
-        description="Record a contribution on behalf of a member. An admin approves it before it counts toward their total."
+        description="Record contracts or materials on behalf of a member. An admin approves before it counts."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card className="py-6">
           <CardContent>
-            <RemitForm members={members} />
+            <RemitForm members={members} types={types} />
           </CardContent>
         </Card>
 
@@ -66,17 +72,14 @@ export default async function NewRemitPage() {
                   <div className="min-w-0 flex-1">
                     <PersonCell person={entry.member} compact />
                     <p className="text-muted-foreground mt-1 text-xs">
+                      {entry.quantity}× {entry.remit_type?.name ?? "Remit"}
+                      {entry.amount != null ? ` · ${formatMoney(entry.amount)}` : ""}
+                    </p>
+                    <p className="text-muted-foreground/70 mt-0.5 text-xs">
                       {formatRelative(entry.created_at)}
                     </p>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="tabular text-sm font-medium">
-                      {formatMoney(entry.amount)}
-                    </p>
-                    <div className="mt-1 flex justify-end">
-                      <StatusBadge status={entry.status as RemitStatus} />
-                    </div>
-                  </div>
+                  <StatusBadge status={entry.status as RemitStatus} />
                 </li>
               ))}
             </ul>

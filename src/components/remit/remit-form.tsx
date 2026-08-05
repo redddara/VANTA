@@ -22,15 +22,29 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { submitRemit } from "@/lib/actions/remit";
-import { formatMoney } from "@/lib/format";
+import type { RemitType } from "@/lib/types/app";
 
 const Schema = z.object({
   memberId: z.uuid("Pick the member this remit belongs to."),
+  remitTypeId: z.uuid("Pick what is being remitted."),
+  quantity: z
+    .number({ error: "Enter a quantity." })
+    .int("Quantity must be a whole number.")
+    .positive("Quantity must be greater than zero."),
   amount: z
-    .number({ error: "Enter an amount." })
-    .positive("Amount must be greater than zero."),
+    .number()
+    .positive("Amount must be greater than zero.")
+    .optional()
+    .nullable(),
   description: z
     .string()
     .trim()
@@ -39,19 +53,36 @@ const Schema = z.object({
 
 type Values = z.infer<typeof Schema>;
 
-export function RemitForm({ members }: { members: SelectableMember[] }) {
+export function RemitForm({
+  members,
+  types,
+}: {
+  members: SelectableMember[];
+  types: RemitType[];
+}) {
   const router = useRouter();
+  const defaultType =
+    types.find((t) => t.is_weekly_quota)?.id ?? types[0]?.id ?? "";
 
   const form = useForm<Values>({
     resolver: zodResolver(Schema),
-    defaultValues: { memberId: "", amount: 0, description: "" },
+    defaultValues: {
+      memberId: "",
+      remitTypeId: defaultType,
+      quantity: 1,
+      amount: null,
+      description: "",
+    },
   });
 
-  const amount = useWatch({ control: form.control, name: "amount" });
+  const selectedTypeId = useWatch({ control: form.control, name: "remitTypeId" });
+  const selectedType = types.find((t) => t.id === selectedTypeId);
 
   async function onSubmit(values: Values) {
     const result = await submitRemit({
       memberId: values.memberId,
+      remitTypeId: values.remitTypeId,
+      quantity: values.quantity,
       amount: values.amount,
       description: values.description,
     });
@@ -62,7 +93,13 @@ export function RemitForm({ members }: { members: SelectableMember[] }) {
     }
 
     toast.success(result.message);
-    form.reset({ memberId: values.memberId, amount: 0, description: "" });
+    form.reset({
+      memberId: values.memberId,
+      remitTypeId: values.remitTypeId,
+      quantity: 1,
+      amount: null,
+      description: "",
+    });
     router.refresh();
   }
 
@@ -83,9 +120,66 @@ export function RemitForm({ members }: { members: SelectableMember[] }) {
                   invalid={!!fieldState.error}
                 />
               </FormControl>
-              <FormDescription>
-                Who this contribution is credited to.
-              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="remitTypeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <Select value={field.value || undefined} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a remit type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {types.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                      {type.is_weekly_quota ? " (weekly quota)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedType?.is_weekly_quota ? (
+                <FormDescription>
+                  Counts toward the weekly quota of {selectedType.quota_amount}.
+                </FormDescription>
+              ) : null}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="quantity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Quantity</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={field.value}
+                  onChange={(event) =>
+                    field.onChange(
+                      event.target.value === ""
+                        ? Number.NaN
+                        : event.target.valueAsNumber,
+                    )
+                  }
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -96,7 +190,7 @@ export function RemitForm({ members }: { members: SelectableMember[] }) {
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount</FormLabel>
+              <FormLabel>Cash amount (optional)</FormLabel>
               <FormControl>
                 <div className="relative">
                   <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
@@ -104,26 +198,24 @@ export function RemitForm({ members }: { members: SelectableMember[] }) {
                   </span>
                   <Input
                     type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    placeholder="0"
-                    className="tabular h-11 pl-7"
-                    value={Number.isFinite(field.value) && field.value !== 0 ? field.value : ""}
-                    onChange={(event) =>
-                      field.onChange(
-                        event.target.value === "" ? 0 : event.target.valueAsNumber,
-                      )
-                    }
-                    onBlur={field.onBlur}
+                    min={0}
+                    step="1"
+                    className="pl-7"
+                    placeholder="Leave blank for item remits"
                     name={field.name}
                     ref={field.ref}
+                    onBlur={field.onBlur}
+                    value={field.value ?? ""}
+                    onChange={(event) =>
+                      field.onChange(
+                        event.target.value === ""
+                          ? null
+                          : event.target.valueAsNumber,
+                      )
+                    }
                   />
                 </div>
               </FormControl>
-              <FormDescription>
-                {amount > 0 ? formatMoney(amount) : "In-game cash contributed to the org."}
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -134,35 +226,19 @@ export function RemitForm({ members }: { members: SelectableMember[] }) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                Description
-                <span className="text-muted-foreground font-normal">optional</span>
-              </FormLabel>
+              <FormLabel>Note</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Where the money came from, e.g. warehouse run split"
-                  rows={3}
-                  {...field}
-                />
+                <Textarea placeholder="Optional context" rows={3} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            type="submit"
-            disabled={form.formState.isSubmitting}
-            className="sm:w-auto"
-          >
-            {form.formState.isSubmitting && <Loader2 className="animate-spin" />}
-            Submit remit
-          </Button>
-          <p className="text-muted-foreground text-xs">
-            Submitted entries stay pending until an admin approves them.
-          </p>
-        </div>
+        <Button type="submit" disabled={form.formState.isSubmitting || types.length === 0}>
+          {form.formState.isSubmitting && <Loader2 className="animate-spin" />}
+          Submit remit
+        </Button>
       </form>
     </Form>
   );

@@ -19,7 +19,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl leading-tight tracking-wide uppercase sm:text-3xl">
+        <h1 className="font-display text-2xl leading-tight tracking-wide uppercase sm:text-3xl">
           {title}
         </h1>
         {description && (

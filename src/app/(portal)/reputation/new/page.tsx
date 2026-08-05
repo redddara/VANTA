@@ -1,86 +1,79 @@
 import type { Metadata } from "next";
-import { Star } from "lucide-react";
+import Link from "next/link";
+import { Layers } from "lucide-react";
 
-import { ReputationForm } from "@/components/reputation/reputation-form";
+import { SetTierForm } from "@/components/reputation/set-tier-form";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
-import { PersonCell } from "@/components/shared/person-cell";
-import { RepDelta } from "@/components/shared/rep-delta";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireStaff } from "@/lib/auth";
-import { formatRelative } from "@/lib/format";
 import { getSelectableMembers } from "@/lib/members";
-import { REPUTATION_SELECT } from "@/lib/queries";
+import { MEMBER_SUMMARY_SELECT, REP_TIER_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import type { ReputationEntryWithPeople } from "@/lib/types/app";
+import type { MemberSummary, RepTier } from "@/lib/types/app";
 
-export const metadata: Metadata = { title: "Give reputation" };
+export const metadata: Metadata = { title: "Set reputation tier" };
 
-export default async function NewReputationPage() {
-  const { profile } = await requireStaff();
+export default async function SetReputationTierPage() {
+  await requireStaff();
   const supabase = await createClient();
 
-  const [members, recent] = await Promise.all([
+  const [members, tiersResult, summariesResult] = await Promise.all([
     getSelectableMembers(),
     supabase
-      .from("reputation_entries")
-      .select(REPUTATION_SELECT)
-      .eq("given_by", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(8)
-      .returns<ReputationEntryWithPeople[]>(),
+      .from("rep_tiers")
+      .select(REP_TIER_SELECT)
+      .order("level_order", { ascending: true })
+      .returns<RepTier[]>(),
+    supabase
+      .from("member_summary")
+      .select(MEMBER_SUMMARY_SELECT)
+      .eq("is_active", true)
+      .returns<MemberSummary[]>(),
   ]);
 
-  const recentEntries = recent.data ?? [];
+  const tiers = tiersResult.data ?? [];
+  const currentByMember = Object.fromEntries(
+    (summariesResult.data ?? []).map((m) => [m.id, m.current_tier_id]),
+  );
 
   return (
     <>
       <PageHeader
-        title="Give Reputation"
-        description="Grant or dock a member's standing. Every entry needs a reason and is visible to that member."
+        title="Set Reputation Tier"
+        description="Place a member on the job ladder. There is no points score — only their current tier."
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/rep-tiers">View ladder</Link>
+          </Button>
+        }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {tiers.length === 0 ? (
+        <Card className="py-0">
+          <EmptyState
+            icon={Layers}
+            title="No tiers configured"
+            description="An admin needs to build the ladder before anyone can be placed on it."
+            action={
+              <Button asChild size="sm">
+                <Link href="/admin/rep-tiers">Manage ladder</Link>
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
         <Card className="py-6">
           <CardContent>
-            <ReputationForm members={members} />
+            <SetTierForm
+              members={members}
+              tiers={tiers}
+              currentByMember={currentByMember}
+            />
           </CardContent>
         </Card>
-
-        <Card className="h-fit gap-0 overflow-hidden py-0">
-          <CardHeader className="border-b py-4">
-            <CardTitle className="text-sm">Recently given by you</CardTitle>
-          </CardHeader>
-
-          {recentEntries.length === 0 ? (
-            <EmptyState
-              icon={Star}
-              title="No entries yet"
-              description="Reputation you grant or dock will appear here."
-              className="py-10"
-            />
-          ) : (
-            <ul className="divide-border/60 divide-y">
-              {recentEntries.map((entry) => (
-                <li key={entry.id} className="p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <PersonCell person={entry.member} compact />
-                    </div>
-                    <RepDelta points={entry.points} className="shrink-0 text-sm" />
-                  </div>
-                  <p className="text-muted-foreground mt-2 line-clamp-2 text-xs">
-                    {entry.reason}
-                  </p>
-                  <p className="text-muted-foreground/70 mt-1 text-xs">
-                    {formatRelative(entry.created_at)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      )}
     </>
   );
 }

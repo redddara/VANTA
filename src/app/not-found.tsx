@@ -10,10 +10,10 @@ export default function NotFound() {
 
       <VantaCrest size="lg" className="mb-6" />
 
-      <p className="text-primary font-[family-name:var(--font-display)] text-5xl tracking-widest">
+      <p className="text-primary font-display text-5xl tracking-widest">
         404
       </p>
-      <h1 className="mt-3 font-[family-name:var(--font-display)] text-xl tracking-wide uppercase">
+      <h1 className="mt-3 font-display text-xl tracking-wide uppercase">
         Nothing here
       </h1>
       <p className="text-muted-foreground mt-2 max-w-sm text-sm text-balance">

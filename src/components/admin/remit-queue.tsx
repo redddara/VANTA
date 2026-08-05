@@ -38,7 +38,7 @@ import {
 import { reviewRemit, voidRemit } from "@/lib/actions/remit";
 import { displayName } from "@/lib/display";
 import { formatDateTime, formatMoney, formatRelative } from "@/lib/format";
-import type { RemitLogWithPeople, RemitStatus } from "@/lib/types/app";
+import type { RemitLogWithPeople, RemitStatus, RemitType } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 type Filter = RemitStatus | "all";
@@ -50,7 +50,13 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
-export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
+export function RemitQueue({
+  entries,
+  types,
+}: {
+  entries: RemitLogWithPeople[];
+  types: RemitType[];
+}) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("pending");
   const [editing, setEditing] = useState<RemitLogWithPeople | null>(null);
@@ -96,7 +102,7 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
       <div
         role="group"
         aria-label="Filter by status"
-        className="bg-secondary/60 mb-4 inline-flex w-full rounded-lg p-[3px] sm:w-fit"
+        className="bg-secondary/60 mb-4 inline-flex w-full rounded-lg p-0.75 sm:w-fit"
       >
         {FILTERS.map((option) => (
           <button
@@ -130,7 +136,7 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
             }
             description={
               filter === "pending"
-                ? "Remit submitted by officers lands here for approval."
+                ? "Remit logged by the crew lands here for approval."
                 : "Try a different status filter."
             }
           />
@@ -139,8 +145,9 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Member</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="hidden lg:table-cell">Description</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Cash</TableHead>
+                <TableHead className="hidden lg:table-cell">Note</TableHead>
                 <TableHead className="hidden md:table-cell">Submitted by</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-px text-right">Actions</TableHead>
@@ -165,12 +172,23 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
                       </p>
                     </TableCell>
 
-                    <TableCell className="tabular text-right font-medium whitespace-nowrap">
-                      {formatMoney(entry.amount)}
+                    <TableCell>
+                      <p className="text-sm font-medium">
+                        {entry.quantity}× {entry.remit_type?.name ?? "Remit"}
+                      </p>
+                      {entry.amount != null ? (
+                        <p className="text-muted-foreground tabular mt-0.5 text-xs md:hidden">
+                          {formatMoney(entry.amount)}
+                        </p>
+                      ) : null}
+                    </TableCell>
+
+                    <TableCell className="tabular text-muted-foreground hidden text-right md:table-cell">
+                      {entry.amount != null ? formatMoney(entry.amount) : "\u2014"}
                     </TableCell>
 
                     <TableCell className="hidden max-w-xs lg:table-cell">
-                      <p className="text-muted-foreground text-sm break-words">
+                      <p className="text-muted-foreground text-sm wrap-break-word">
                         {entry.description || "\u2014"}
                       </p>
                     </TableCell>
@@ -197,7 +215,7 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
                               variant="outline"
                               disabled={busy}
                               onClick={() => review(entry, "approved")}
-                              className="text-[var(--success)] hover:text-[var(--success)]"
+                              className="text-success hover:text-success"
                             >
                               {busy ? (
                                 <Loader2 className="animate-spin" />
@@ -265,6 +283,7 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
 
       <RemitEditDialog
         entry={editing}
+        types={types}
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
       />
@@ -278,7 +297,7 @@ export function RemitQueue({ entries }: { entries: RemitLogWithPeople[] }) {
         description={
           voiding ? (
             <>
-              {formatMoney(voiding.amount)} credited to{" "}
+              {voiding.quantity}× {voiding.remit_type?.name ?? "remit"} for{" "}
               <span className="text-foreground font-medium">
                 {displayName(voiding.member ?? {})}
               </span>{" "}

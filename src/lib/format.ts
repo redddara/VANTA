@@ -18,11 +18,6 @@ export function formatMoney(value: number | string | null | undefined): string {
   return Number.isInteger(amount) ? wholeMoney.format(amount) : centsMoney.format(amount);
 }
 
-/** Reputation is always signed, so a zero-change entry still reads clearly. */
-export function formatPoints(points: number): string {
-  return `${points > 0 ? "+" : points < 0 ? "\u2212" : ""}${Math.abs(points)}`;
-}
-
 const dateTime = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "short",
@@ -45,7 +40,10 @@ export function formatDateTime(iso: string | null | undefined): string {
 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "\u2014";
-  return dateOnly.format(new Date(iso));
+  // Date-only values (week_start) must not be parsed as UTC midnight or they
+  // shift a day west of Manila.
+  const value = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T12:00:00` : iso;
+  return dateOnly.format(new Date(value));
 }
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [

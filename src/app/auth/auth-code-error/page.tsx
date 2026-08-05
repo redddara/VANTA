@@ -25,7 +25,7 @@ export default async function AuthCodeErrorPage({
 
         <div className="text-destructive mb-4 flex items-center justify-center gap-2">
           <ShieldAlert className="size-5" />
-          <h1 className="font-[family-name:var(--font-display)] text-xl tracking-wide uppercase">
+          <h1 className="font-display text-xl tracking-wide uppercase">
             Sign-in failed
           </h1>
         </div>
@@ -36,7 +36,7 @@ export default async function AuthCodeErrorPage({
         </p>
 
         {reason && (
-          <p className="text-muted-foreground/80 bg-card mt-4 rounded-md border p-3 text-left font-[family-name:var(--font-geist-mono)] text-xs break-words">
+          <p className="text-muted-foreground/80 bg-card mt-4 rounded-md border p-3 text-left font-mono text-xs wrap-break-word">
             {reason}
           </p>
         )}

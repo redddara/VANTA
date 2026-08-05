@@ -1,28 +1,37 @@
-import type { Role } from "@/lib/types/app";
+import { rankWeight, type Rank } from "@/lib/types/app";
 
 export type NavItem = {
   href: string;
   label: string;
-  /** Lowest role that may see this link. RLS enforces the real boundary. */
-  minRole: Role;
+  /** Lowest rank that may see this link. RLS enforces the real boundary. */
+  minRank: Rank;
   group: "main" | "actions" | "admin";
 };
 
-const ROLE_RANK: Record<Role, number> = { member: 0, officer: 1, admin: 2 };
-
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", minRole: "member", group: "main" },
-  { href: "/roster", label: "Roster", minRole: "member", group: "main" },
-  { href: "/remit/new", label: "Submit Remit", minRole: "officer", group: "actions" },
-  { href: "/reputation/new", label: "Give Rep", minRole: "officer", group: "actions" },
-  { href: "/admin/remit", label: "Remit Queue", minRole: "admin", group: "admin" },
-  { href: "/admin/reputation", label: "Rep Ledger", minRole: "admin", group: "admin" },
-  { href: "/admin/members", label: "Members", minRole: "admin", group: "admin" },
-  { href: "/admin/audit", label: "Audit Log", minRole: "admin", group: "admin" },
+  { href: "/dashboard", label: "Dashboard", minRank: "Prospect", group: "main" },
+  { href: "/roster", label: "Roster", minRank: "Operator", group: "main" },
+  { href: "/rep-tiers", label: "Rep Ladder", minRank: "Prospect", group: "main" },
+  { href: "/remit/mine", label: "Log My Remit", minRank: "Prospect", group: "actions" },
+  { href: "/remit/new", label: "Submit Remit", minRank: "Enforcer", group: "actions" },
+  { href: "/remit/compliance", label: "Weekly Quota", minRank: "Enforcer", group: "actions" },
+  { href: "/reputation/new", label: "Set Rep Tier", minRank: "Enforcer", group: "actions" },
+  { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
+  { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
+  { href: "/admin/rep-tiers", label: "Manage Ladder", minRank: "Underboss", group: "admin" },
+  { href: "/admin/members", label: "Members", minRank: "Underboss", group: "admin" },
+  { href: "/admin/audit", label: "Audit Log", minRank: "Underboss", group: "admin" },
 ];
 
-export function visibleNavItems(role: Role): NavItem[] {
-  return NAV_ITEMS.filter((item) => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
+export const NAV_GROUP_LABELS: Record<NavItem["group"], string> = {
+  main: "Portal",
+  actions: "Actions",
+  admin: "Admin",
+};
+
+export function visibleNavItems(rank: Rank): NavItem[] {
+  const weight = rankWeight(rank);
+  return NAV_ITEMS.filter((item) => weight >= rankWeight(item.minRank));
 }
 
 export function isActivePath(pathname: string, href: string): boolean {

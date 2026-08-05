@@ -6,14 +6,14 @@ import { z } from "zod";
 import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shared";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { CREW_RANKS } from "@/lib/constants";
+import { RANKS } from "@/lib/constants";
+import type { Rank } from "@/lib/types/app";
 
 const uuid = z.uuid("Unknown member.");
 
 const UpdateMemberSchema = z.object({
   id: uuid,
-  role: z.enum(["member", "officer", "admin"]),
-  crewRank: z.enum(CREW_RANKS),
+  rank: z.enum(RANKS),
   isActive: z.boolean(),
 });
 
@@ -33,14 +33,14 @@ function revalidateMembers() {
 }
 
 /**
- * Admin-only. The database rejects this for anyone else and refuses to remove
- * the last active admin, so both rules hold even if this action is called
- * directly.
+ * Admin-only. Rank is the whole permission model, so every rule that matters
+ * lives in the database: it rejects this for anyone below Underboss, refuses to
+ * remove the last active Kingpin, and lets only a Kingpin appoint another. All
+ * three hold even if this action is called directly.
  */
 export async function updateMember(input: {
   id: string;
-  role: "member" | "officer" | "admin";
-  crewRank: string;
+  rank: Rank;
   isActive: boolean;
 }): Promise<ActionResult> {
   const parsed = UpdateMemberSchema.safeParse(input);
@@ -52,8 +52,7 @@ export async function updateMember(input: {
     .from("profiles")
     .update(
       {
-        role: parsed.data.role,
-        crew_rank: parsed.data.crewRank,
+        crew_rank: parsed.data.rank,
         is_active: parsed.data.isActive,
       },
       { count: "exact" },

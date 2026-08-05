@@ -1,6 +1,6 @@
 /**
  * Runs every migration in supabase/migrations against an in-process Postgres
- * (PGlite) and exercises the RLS policies as member / officer / admin.
+ * (PGlite) and exercises the RLS policies at each of the six crew ranks.
  *
  * The point is to prove the policies actually deny what they claim to deny,
  * since a broken policy fails open and would be invisible in the UI.
@@ -156,6 +156,11 @@ async function signIn(username) {
   return rows[0].id;
 }
 
+async function rankOf(id) {
+  const { rows } = await asSystem("select crew_rank from public.profiles where id = $1;", [id]);
+  return rows[0]?.crew_rank;
+}
+
 async function main() {
   console.log("\nBootstrapping Supabase-like environment");
   await bootstrapSupabaseEnvironment();
@@ -165,25 +170,32 @@ async function main() {
   await runMigrations();
 
   console.log("\nProfile auto-provisioning");
-  const adminId = await signIn("boss");
-  const officerId = await signIn("capo");
-  const memberId = await signIn("soldier");
-  const outsiderId = await signIn("recruit");
+  const kingpinId = await signIn("kingpin");
+  const underbossId = await signIn("underboss");
+  const captainId = await signIn("captain");
+  const operatorId = await signIn("operator");
+  const prospectId = await signIn("prospect");
 
-  await check("first Discord sign-in is provisioned as admin", async () => {
-    const { rows } = await asSystem("select role, discord_username, ingame_name from public.profiles where id = $1;", [adminId]);
+  await check("the first Discord sign-in is provisioned as Kingpin", async () => {
+    const { rows } = await asSystem(
+      "select crew_rank, discord_username, ingame_name from public.profiles where id = $1;",
+      [kingpinId],
+    );
     assert(rows.length === 1, "no profile row was created");
-    assert(rows[0].role === "admin", `expected admin, got ${rows[0].role}`);
-    assert(rows[0].discord_username === "boss", "discord username was not copied");
-    assert(rows[0].ingame_name === "boss", "ingame name was not seeded");
+    assert(rows[0].crew_rank === "Kingpin", `expected Kingpin, got ${rows[0].crew_rank}`);
+    assert(rows[0].discord_username === "kingpin", "discord username was not copied");
+    assert(rows[0].ingame_name === "kingpin", "ingame name was not seeded");
   });
 
-  await check("subsequent sign-ins default to member", async () => {
-    const { rows } = await asSystem("select role from public.profiles where id = any($1);", [
-      [officerId, memberId, outsiderId],
+  await check("every later sign-in starts as a Prospect", async () => {
+    const { rows } = await asSystem("select crew_rank from public.profiles where id = any($1);", [
+      [underbossId, captainId, operatorId, prospectId],
     ]);
-    assert(rows.length === 3, "expected three profiles");
-    assert(rows.every((r) => r.role === "member"), "a later signup was not a plain member");
+    assert(rows.length === 4, "expected four profiles");
+    assert(
+      rows.every((r) => r.crew_rank === "Prospect"),
+      "a later signup was given something other than Prospect",
+    );
   });
 
   await check("avatar refreshes when Discord metadata changes", async () => {
@@ -191,222 +203,466 @@ async function main() {
       `update auth.users
        set raw_user_meta_data = jsonb_set(raw_user_meta_data, '{avatar_url}', '"https://cdn.discordapp.com/new.png"')
        where id = $1;`,
-      [memberId],
+      [operatorId],
     );
-    const { rows } = await asSystem("select discord_avatar_url from public.profiles where id = $1;", [memberId]);
+    const { rows } = await asSystem("select discord_avatar_url from public.profiles where id = $1;", [operatorId]);
     assert(rows[0].discord_avatar_url === "https://cdn.discordapp.com/new.png", "avatar was not synced");
   });
 
+  await check("vanta_ensure_profile heals an orphaned auth account", async () => {
+    // Disable the insert trigger so we can reproduce a user with no profile.
+    await asSystem("alter table auth.users disable trigger on_auth_user_created;");
+    const orphan = await asSystem(
+      `insert into auth.users (id, email, raw_user_meta_data)
+       values (gen_random_uuid(), 'orphan@example.com', '{"user_name":"orphan","custom_claims":{"global_name":"Orphan"}}'::jsonb)
+       returning id;`,
+    );
+    const orphanId = orphan.rows[0].id;
+    await asSystem("alter table auth.users enable trigger on_auth_user_created;");
+
+    const before = await asSystem("select 1 from public.profiles where id = $1;", [orphanId]);
+    assert(before.rows.length === 0, "orphan unexpectedly got a profile from the insert");
+
+    const { rows } = await as(orphanId, "select crew_rank, ingame_name from public.vanta_ensure_profile();");
+    assert(rows.length === 1, "ensure_profile returned nothing");
+    assert(rows[0].crew_rank === "Prospect", `expected Prospect, got ${rows[0].crew_rank}`);
+    assert(rows[0].ingame_name === "Orphan", "display name was not copied");
+
+    // Idempotent: calling again must return the same row, not create a second.
+    const again = await as(orphanId, "select id from public.vanta_ensure_profile();");
+    assert(again.rows[0].id === orphanId, "second call did not return the existing profile");
+
+    // Drop the orphan so later roster counts stay tied to the five seeded members.
+    await asSystem("delete from auth.users where id = $1;", [orphanId]);
+  });
+
   // Promote via the system path, the way the SETUP.md bootstrap instructs.
-  await asSystem("update public.profiles set role = 'officer' where id = $1;", [officerId]);
+  await asSystem("update public.profiles set crew_rank = 'Underboss' where id = $1;", [underbossId]);
+  await asSystem("update public.profiles set crew_rank = 'Captain' where id = $1;", [captainId]);
+  await asSystem("update public.profiles set crew_rank = 'Operator' where id = $1;", [operatorId]);
 
   console.log("\nprofiles RLS");
 
-  await check("any member can read the whole roster", async () => {
-    const { rows } = await as(memberId, "select id from public.profiles;");
-    assert(rows.length === 4, `expected 4 profiles, got ${rows.length}`);
+  await check("an Operator can read the whole roster", async () => {
+    const { rows } = await as(operatorId, "select id from public.profiles;");
+    assert(rows.length === 5, `expected 5 profiles, got ${rows.length}`);
   });
 
-  await check("a member can rename their own ingame_name", async () => {
-    await as(memberId, "update public.profiles set ingame_name = 'Tony V' where id = $1;", [memberId]);
-    const { rows } = await asSystem("select ingame_name from public.profiles where id = $1;", [memberId]);
-    assert(rows[0].ingame_name === "Tony V", "the rename did not stick");
+  await check("a Prospect sees only their own profile row", async () => {
+    const { rows } = await as(prospectId, "select id from public.profiles;");
+    assert(rows.length === 1, `a Prospect saw ${rows.length} profiles, expected only their own`);
+    assert(rows[0].id === prospectId, "a Prospect saw somebody else's row");
+  });
+
+  await check("a Prospect can still set their own in-game name", async () => {
+    await as(prospectId, "update public.profiles set ingame_name = 'Nico' where id = $1;", [prospectId]);
+    const { rows } = await asSystem("select ingame_name from public.profiles where id = $1;", [prospectId]);
+    assert(rows[0].ingame_name === "Nico", "the rename did not stick");
   });
 
   await denied(
-    "a member cannot promote themselves",
-    () => as(memberId, "update public.profiles set role = 'admin' where id = $1;", [memberId]),
+    "a Prospect cannot promote themselves",
+    () => as(prospectId, "update public.profiles set crew_rank = 'Kingpin' where id = $1;", [prospectId]),
     "Only an admin can change",
   );
 
   await denied(
-    "a member cannot change their own crew_rank",
-    () => as(memberId, "update public.profiles set crew_rank = 'Underboss' where id = $1;", [memberId]),
+    "an Operator cannot change their own rank",
+    () => as(operatorId, "update public.profiles set crew_rank = 'Captain' where id = $1;", [operatorId]),
     "Only an admin can change",
   );
 
-  await check("a member cannot edit someone else's profile", async () => {
-    const result = await as(memberId, "update public.profiles set ingame_name = 'hacked' where id = $1;", [outsiderId]);
-    assert(result.affectedRows === 0, "RLS let a member write to another member's row");
+  await check("an Operator cannot edit someone else's profile", async () => {
+    const result = await as(operatorId, "update public.profiles set ingame_name = 'hacked' where id = $1;", [
+      prospectId,
+    ]);
+    assert(result.affectedRows === 0, "RLS let an Operator write to another member's row");
+  });
+
+  // Two different mechanisms deny this. Another member's row is filtered out by
+  // the policy, so the update quietly affects nothing; their own row passes the
+  // policy and is stopped by the guard trigger with a message.
+  await check("a Captain cannot promote another member", async () => {
+    const result = await as(captainId, "update public.profiles set crew_rank = 'Underboss' where id = $1;", [
+      operatorId,
+    ]);
+    assert(result.affectedRows === 0, "a Captain promoted another member");
+    assert((await rankOf(operatorId)) === "Operator", "the Operator's rank changed anyway");
   });
 
   await denied(
-    "an officer cannot promote anyone",
-    () => as(officerId, "update public.profiles set role = 'admin' where id = $1;", [officerId]),
+    "a Captain cannot promote themselves",
+    () => as(captainId, "update public.profiles set crew_rank = 'Underboss' where id = $1;", [captainId]),
     "Only an admin can change",
   );
 
-  await check("an admin can set roles and ranks", async () => {
-    await as(adminId, "update public.profiles set crew_rank = 'Capo', role = 'officer' where id = $1;", [officerId]);
-    const { rows } = await asSystem("select crew_rank, role from public.profiles where id = $1;", [officerId]);
-    assert(rows[0].crew_rank === "Capo" && rows[0].role === "officer", "admin update did not apply");
+  await check("an Underboss can set ranks", async () => {
+    await as(underbossId, "update public.profiles set crew_rank = 'Enforcer' where id = $1;", [captainId]);
+    assert((await rankOf(captainId)) === "Enforcer", "the Underboss update did not apply");
+    await as(underbossId, "update public.profiles set crew_rank = 'Captain' where id = $1;", [captainId]);
+    assert((await rankOf(captainId)) === "Captain", "the rank could not be set back");
   });
 
   await denied(
-    "the last active admin cannot be demoted",
-    () => as(adminId, "update public.profiles set role = 'member' where id = $1;", [adminId]),
-    "at least one active admin",
+    "an Underboss cannot appoint a Kingpin",
+    () => as(underbossId, "update public.profiles set crew_rank = 'Kingpin' where id = $1;", [underbossId]),
+    "Only a Kingpin can grant",
   );
 
-  console.log("\nremit_logs RLS");
+  await denied(
+    "the last active Kingpin cannot be demoted",
+    () => as(kingpinId, "update public.profiles set crew_rank = 'Captain' where id = $1;", [kingpinId]),
+    "at least one active Kingpin",
+  );
 
   await denied(
-    "a plain member cannot submit remit",
-    () =>
-      as(memberId, "insert into public.remit_logs (member_id, amount, description, submitted_by) values ($1, 500, 'heist cut', $1);", [
-        memberId,
-      ]),
+    "the last active Kingpin cannot be deactivated",
+    () => as(kingpinId, "update public.profiles set is_active = false where id = $1;", [kingpinId]),
+    "at least one active Kingpin",
+  );
+
+  await check("a Kingpin can appoint another Kingpin", async () => {
+    await as(kingpinId, "update public.profiles set crew_rank = 'Kingpin' where id = $1;", [underbossId]);
+    assert((await rankOf(underbossId)) === "Kingpin", "the appointment did not apply");
+    // Step back down now that a second Kingpin exists to authorise it.
+    await as(kingpinId, "update public.profiles set crew_rank = 'Underboss' where id = $1;", [underbossId]);
+    assert((await rankOf(underbossId)) === "Underboss", "the demotion did not apply");
+  });
+
+  await denied(
+    "ranks outside the ladder are rejected",
+    () => asSystem("update public.profiles set crew_rank = 'Consigliere' where id = $1;", [operatorId]),
+    "violates check constraint",
+  );
+
+  console.log("\nremit_types and remit_logs RLS");
+
+  const remitTypes = await asSystem(
+    "select id, name, is_weekly_quota, quota_amount from public.remit_types order by name;",
+  );
+  const launderingType = remitTypes.rows.find((r) => r.is_weekly_quota);
+  const chopmatsType = remitTypes.rows.find((r) => r.name === "Chopmats");
+  assert(launderingType, "Laundering Contract seed missing");
+  assert(chopmatsType, "Chopmats seed missing");
+  assert(Number(launderingType.quota_amount) === 2, "weekly quota should be 2");
+
+  await check("everyone can read remit types", async () => {
+    const { rows } = await as(prospectId, "select id from public.remit_types;");
+    assert(rows.length >= 8, `expected seeded types, got ${rows.length}`);
+  });
+
+  await denied(
+    "a Captain cannot create remit types",
+    () => as(captainId, "insert into public.remit_types (name) values ('Fake Type');"),
     "row-level security",
   );
 
-  let remitId;
-  await check("an officer can submit remit for a member", async () => {
+  let prospectRemitId;
+  await check("a Prospect can log their own remit", async () => {
     const { rows } = await as(
-      officerId,
-      "insert into public.remit_logs (member_id, amount, description, submitted_by) values ($1, 5000, 'warehouse job', $2) returning id, status;",
-      [memberId, officerId],
+      prospectId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, description, submitted_by)
+       values ($1, $2, 1, 'first drop', $1)
+       returning id, status, week_start;`,
+      [prospectId, launderingType.id],
+    );
+    prospectRemitId = rows[0].id;
+    assert(rows[0].status === "pending", "a self-logged remit should start pending");
+    assert(rows[0].week_start != null, "week_start should be stamped by the trigger");
+  });
+
+  await denied(
+    "a Prospect cannot log remit for anyone else",
+    () =>
+      as(
+        prospectId,
+        `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+         values ($1, $2, 1, $3);`,
+        [operatorId, launderingType.id, prospectId],
+      ),
+    "row-level security",
+  );
+
+  await denied(
+    "a Prospect cannot approve their own remit at insert time",
+    () =>
+      as(
+        prospectId,
+        `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by, status)
+         values ($1, $2, 1, $1, 'approved');`,
+        [prospectId, launderingType.id],
+      ),
+    "row-level security",
+  );
+
+  await check("an Operator can log their own remit", async () => {
+    await as(
+      operatorId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 2, $1);`,
+      [operatorId, chopmatsType.id],
+    );
+  });
+
+  let remitId;
+  await check("a Captain can submit remit for another member", async () => {
+    const { rows } = await as(
+      captainId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, amount, description, submitted_by)
+       values ($1, $2, 2, 5000, 'warehouse job', $3)
+       returning id, status;`,
+      [operatorId, launderingType.id, captainId],
     );
     remitId = rows[0].id;
     assert(rows[0].status === "pending", "new remit should start pending");
   });
 
   await denied(
-    "an officer cannot submit remit attributed to someone else",
+    "a Captain cannot submit remit attributed to someone else",
     () =>
-      as(officerId, "insert into public.remit_logs (member_id, amount, submitted_by) values ($1, 100, $2);", [
-        memberId,
-        adminId,
-      ]),
+      as(
+        captainId,
+        `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+         values ($1, $2, 1, $3);`,
+        [operatorId, launderingType.id, kingpinId],
+      ),
     "row-level security",
   );
 
   await denied(
-    "an officer cannot self-approve at insert time",
+    "a Captain cannot self-approve at insert time",
     () =>
-      as(officerId, "insert into public.remit_logs (member_id, amount, submitted_by, status) values ($1, 100, $2, 'approved');", [
-        memberId,
-        officerId,
-      ]),
+      as(
+        captainId,
+        `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by, status)
+         values ($1, $2, 1, $3, 'approved');`,
+        [operatorId, launderingType.id, captainId],
+      ),
     "row-level security",
   );
 
-  await check("a member sees their own remit but not other members'", async () => {
-    await as(
-      officerId,
-      "insert into public.remit_logs (member_id, amount, submitted_by) values ($1, 900, $2);",
-      [outsiderId, officerId],
-    );
-    const { rows } = await as(memberId, "select id from public.remit_logs;");
-    assert(rows.length === 1, `member should see exactly their own 1 entry, saw ${rows.length}`);
+  await check("a Prospect sees their own remit and nothing else", async () => {
+    const { rows } = await as(prospectId, "select id from public.remit_logs;");
+    assert(rows.length === 1, `a Prospect saw ${rows.length} entries, expected only their own`);
+    assert(rows[0].id === prospectRemitId, "a Prospect saw somebody else's remit");
   });
 
-  await check("an officer sees every remit entry", async () => {
-    const { rows } = await as(officerId, "select id from public.remit_logs;");
-    assert(rows.length === 2, `officer should see 2 entries, saw ${rows.length}`);
+  await check("a Captain sees every remit entry", async () => {
+    const { rows } = await as(captainId, "select id from public.remit_logs;");
+    assert(rows.length === 3, `a Captain should see 3 entries, saw ${rows.length}`);
   });
 
-  await check("an officer cannot approve remit", async () => {
-    const result = await as(officerId, "update public.remit_logs set status = 'approved' where id = $1;", [remitId]);
-    assert(result.affectedRows === 0, "an officer managed to approve remit");
+  await check("a Captain cannot approve remit", async () => {
+    const result = await as(captainId, "update public.remit_logs set status = 'approved' where id = $1;", [remitId]);
+    assert(result.affectedRows === 0, "a Captain managed to approve remit");
   });
 
   await check("an admin approves remit and the reviewer is stamped automatically", async () => {
-    await as(adminId, "update public.remit_logs set status = 'approved' where id = $1;", [remitId]);
+    await as(underbossId, "update public.remit_logs set status = 'approved' where id = $1;", [remitId]);
     const { rows } = await asSystem("select status, reviewed_by from public.remit_logs where id = $1;", [remitId]);
     assert(rows[0].status === "approved", "status did not change");
-    assert(rows[0].reviewed_by === adminId, "reviewed_by was not stamped from the JWT");
+    assert(rows[0].reviewed_by === underbossId, "reviewed_by was not stamped from the JWT");
   });
 
-  console.log("\nreputation_entries RLS");
-
-  let repId;
-  await check("an officer can grant reputation", async () => {
-    const { rows } = await as(
-      officerId,
-      "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, 15, 'ran the warehouse job clean', $2) returning id;",
-      [memberId, officerId],
+  await check("week_start is stamped as the Manila Sunday of created_at", async () => {
+    const { rows } = await asSystem(
+      `select week_start = public.vanta_week_start(created_at) as ok from public.remit_logs where id = $1;`,
+      [remitId],
     );
-    repId = rows[0].id;
+    assert(rows[0].ok === true, "week_start does not match the trigger formula");
   });
 
-  await check("an officer can dock reputation with negative points", async () => {
+  await check("weekly compliance counts only approved laundering quantity", async () => {
+    // Approve a second laundering row for the Operator so they meet the quota of 2.
     await as(
-      officerId,
-      "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, -5, 'missed a scheduled run', $2);",
-      [memberId, officerId],
+      captainId,
+      `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+       values ($1, $2, 1, $3);`,
+      [operatorId, launderingType.id, captainId],
+    );
+    // Still pending — not counted yet.
+    let { rows } = await as(
+      captainId,
+      "select approved_quantity, quota_met from public.member_weekly_compliance where member_id = $1;",
+      [operatorId],
+    );
+    assert(Number(rows[0].approved_quantity) === 2, `expected 2 from the earlier approve, got ${rows[0].approved_quantity}`);
+    assert(rows[0].quota_met === true, "Operator should already meet quota from the approved qty 2");
+
+    // Chopmats must not count toward laundering quota.
+    rows = (
+      await as(
+        captainId,
+        "select approved_quantity from public.member_weekly_compliance where member_id = $1;",
+        [operatorId],
+      )
+    ).rows;
+    assert(Number(rows[0].approved_quantity) === 2, "non-quota types inflated the weekly count");
+  });
+
+  await check("a Prospect can read their own compliance row only", async () => {
+    const { rows } = await as(prospectId, "select member_id, quota_met from public.member_weekly_compliance;");
+    assert(rows.length === 1, `Prospect saw ${rows.length} compliance rows`);
+    assert(rows[0].member_id === prospectId, "Prospect read another member's compliance");
+    assert(rows[0].quota_met === false, "Prospect has no approved laundering yet");
+  });
+
+  await check("an Operator cannot read the crew compliance table", async () => {
+    const { rows } = await as(operatorId, "select member_id from public.member_weekly_compliance;");
+    assert(rows.length === 1 && rows[0].member_id === operatorId, "Operator saw other members' compliance");
+  });
+
+  console.log("\nrep_tiers and member_rep RLS");
+
+  // Placeholder seed migration inserts five tiers when the table is empty.
+  const seeded = await asSystem(
+    "select id, level_order, tier_label from public.rep_tiers order by level_order;",
+  );
+  assert(seeded.rows.length >= 2, "expected the seed migration to create placeholder tiers");
+  const tierLowId = seeded.rows[0].id;
+  const tierHighId = seeded.rows[seeded.rows.length - 1].id;
+  const tierHighLabel = seeded.rows[seeded.rows.length - 1].tier_label;
+  const tierHighOrder = Number(seeded.rows[seeded.rows.length - 1].level_order);
+
+  await check("an admin can create rep tiers", async () => {
+    await as(
+      underbossId,
+      `insert into public.rep_tiers (level_order, tier_label, house_rob_payout, gps_unlocked)
+       values (90, 'Verify Extra', '$1', false);`,
     );
   });
 
   await denied(
-    "reputation requires a non-empty reason",
+    "a Captain cannot create rep tiers",
     () =>
-      as(officerId, "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, 5, '   ', $2);", [
-        memberId,
-        officerId,
-      ]),
-    "violates check constraint",
-  );
-
-  await denied(
-    "a plain member cannot grant themselves reputation",
-    () =>
-      as(memberId, "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, 100, 'because', $1);", [
-        memberId,
-      ]),
+      as(
+        captainId,
+        `insert into public.rep_tiers (level_order, tier_label) values (99, 'Fake');`,
+      ),
     "row-level security",
   );
 
-  await check("a member cannot read another member's reputation entries", async () => {
-    await as(
-      officerId,
-      "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, 40, 'secret praise', $2);",
-      [outsiderId, officerId],
-    );
-    const { rows } = await as(memberId, "select id from public.reputation_entries;");
-    assert(rows.length === 2, `member should see only their own 2 entries, saw ${rows.length}`);
+  await check("everyone including a Prospect can read the ladder", async () => {
+    const { rows } = await as(prospectId, "select id from public.rep_tiers order by level_order;");
+    assert(rows.length >= 5, `expected at least the 5 seeded tiers, got ${rows.length}`);
   });
 
-  await check("an officer cannot edit a reputation entry", async () => {
-    const result = await as(officerId, "update public.reputation_entries set points = 999 where id = $1;", [repId]);
-    assert(result.affectedRows === 0, "an officer edited a reputation entry");
+  await check("a Captain can assign a member's first tier", async () => {
+    await as(
+      captainId,
+      "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $3);",
+      [operatorId, tierLowId, captainId],
+    );
+  });
+
+  await check("a Captain can promote a member to a higher tier", async () => {
+    await as(
+      captainId,
+      "update public.member_rep set current_tier_id = $1, updated_by = $2 where member_id = $3;",
+      [tierHighId, captainId, operatorId],
+    );
+    const { rows } = await as(operatorId, "select current_tier_id from public.member_rep where member_id = $1;", [
+      operatorId,
+    ]);
+    assert(rows[0].current_tier_id === tierHighId, "promotion did not stick");
+  });
+
+  await denied(
+    "an Operator cannot assign tiers",
+    () =>
+      as(
+        operatorId,
+        "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $1);",
+        [prospectId, tierLowId],
+      ),
+    "row-level security",
+  );
+
+  await denied(
+    "a Prospect cannot assign themselves a tier",
+    () =>
+      as(
+        prospectId,
+        "insert into public.member_rep (member_id, current_tier_id, updated_by) values ($1, $2, $1);",
+        [prospectId, tierHighId],
+      ),
+    "row-level security",
+  );
+
+  await check("new members have no tier until staff assigns one", async () => {
+    const { rows } = await asSystem("select 1 from public.member_rep where member_id = $1;", [prospectId]);
+    assert(rows.length === 0, "a Prospect was auto-assigned a tier");
+  });
+
+  await check("anyone can read another member's current tier", async () => {
+    const { rows } = await as(prospectId, "select current_tier_id from public.member_rep where member_id = $1;", [
+      operatorId,
+    ]);
+    assert(rows.length === 1, "a Prospect could not read member_rep");
+    assert(rows[0].current_tier_id === tierHighId, "wrong tier visible");
+  });
+
+  await check("the points ledger was archived, not dropped", async () => {
+    const { rows } = await asSystem(
+      "select to_regclass('public.reputation_entries_legacy') is not null as archived, to_regclass('public.reputation_entries') is null as removed;",
+    );
+    assert(rows[0].archived === true, "legacy table missing");
+    assert(rows[0].removed === true, "reputation_entries still exists under the old name");
   });
 
   console.log("\nmember_summary view");
 
-  await check("totals are visible crew-wide even though line items are not", async () => {
+  await check("roster summary exposes the current tier, not a points total", async () => {
     const { rows } = await as(
-      memberId,
-      "select id, total_rep, total_approved_remit from public.member_summary where id = $1;",
-      [outsiderId],
+      operatorId,
+      "select id, tier_label, tier_level_order, gps_unlocked, usb_unlocked, total_approved_remit from public.member_summary where id = $1;",
+      [operatorId],
     );
-    assert(rows.length === 1, "member could not read another member's summary row");
-    assert(Number(rows[0].total_rep) === 40, `expected outsider total_rep 40, got ${rows[0].total_rep}`);
+    assert(rows.length === 1, "could not read own summary");
+    assert(rows[0].tier_label === tierHighLabel, `returned ${rows[0].tier_label}`);
+    assert(Number(rows[0].tier_level_order) === tierHighOrder, "level_order wrong");
+    assert(rows[0].usb_unlocked === true, "top-tier usb unlock missing");
   });
 
-  await check("reputation totals net positive and negative entries", async () => {
-    const { rows } = await as(memberId, "select total_rep from public.member_summary where id = $1;", [memberId]);
-    assert(Number(rows[0].total_rep) === 10, `expected 15 + -5 = 10, got ${rows[0].total_rep}`);
+  await check("a member with no tier shows null tier fields", async () => {
+    const { rows } = await as(
+      operatorId,
+      "select tier_label, current_tier_id from public.member_summary where id = $1;",
+      [prospectId],
+    );
+    assert(rows.length === 1, "an Operator could not read another member's summary row");
+    assert(rows[0].tier_label === null, "unassigned member has a tier label");
+    assert(rows[0].current_tier_id === null, "unassigned member has a tier id");
+  });
+
+  await check("a Prospect sees only their own summary row", async () => {
+    const { rows } = await as(prospectId, "select id from public.member_summary;");
+    assert(rows.length === 1, `a Prospect saw ${rows.length} summary rows, expected only their own`);
+    assert(rows[0].id === prospectId, "a Prospect read somebody else's totals");
   });
 
   await check("only approved remit counts toward the total", async () => {
     const { rows } = await as(
-      memberId,
+      operatorId,
       "select total_approved_remit, pending_remit_count from public.member_summary where id = $1;",
-      [outsiderId],
+      [operatorId],
     );
-    assert(Number(rows[0].total_approved_remit) === 0, "a pending entry leaked into the approved total");
-    assert(Number(rows[0].pending_remit_count) === 1, "pending count is wrong");
+    assert(Number(rows[0].total_approved_remit) === 5000, "the approved total is wrong");
+    // Chopmats + the extra pending laundering row from the compliance setup.
+    assert(Number(rows[0].pending_remit_count) === 2, `pending count is wrong: ${rows[0].pending_remit_count}`);
   });
 
   console.log("\naudit_log");
 
   await check("only admins can read the audit log", async () => {
-    const memberRows = await as(memberId, "select id from public.audit_log;");
-    assert(memberRows.rows.length === 0, "a member read the audit log");
-    const officerRows = await as(officerId, "select id from public.audit_log;");
-    assert(officerRows.rows.length === 0, "an officer read the audit log");
-    const adminRows = await as(adminId, "select id from public.audit_log;");
-    assert(adminRows.rows.length > 0, "the admin sees an empty audit log");
+    const prospectRows = await as(prospectId, "select id from public.audit_log;");
+    assert(prospectRows.rows.length === 0, "a Prospect read the audit log");
+    const operatorRows = await as(operatorId, "select id from public.audit_log;");
+    assert(operatorRows.rows.length === 0, "an Operator read the audit log");
+    const captainRows = await as(captainId, "select id from public.audit_log;");
+    assert(captainRows.rows.length === 0, "a Captain read the audit log");
+    const underbossRows = await as(underbossId, "select id from public.audit_log;");
+    assert(underbossRows.rows.length > 0, "the Underboss sees an empty audit log");
   });
 
   await check("approving remit was recorded with actor and diff", async () => {
@@ -414,26 +670,41 @@ async function main() {
       "select actor_id, action, target_id, detail from public.audit_log where action = 'remit.status';",
     );
     assert(rows.length === 1, `expected 1 remit.status row, got ${rows.length}`);
-    assert(rows[0].actor_id === adminId, "the acting admin was not recorded");
+    assert(rows[0].actor_id === underbossId, "the acting admin was not recorded");
     assert(rows[0].target_id === remitId, "the audited target is wrong");
     assert(rows[0].detail.status.from === "pending" && rows[0].detail.status.to === "approved", "the diff is wrong");
   });
 
-  await check("role changes are recorded", async () => {
-    const { rows } = await asSystem("select action, detail from public.audit_log where action = 'role.change';");
-    assert(rows.length >= 1, "no role change was audited");
-    assert(rows.some((r) => r.detail.role?.to === "officer"), "the promotion to officer was not captured");
+  await check("rank changes are recorded", async () => {
+    const { rows } = await asSystem("select detail from public.audit_log where action = 'rank.change';");
+    assert(rows.length >= 1, "no rank change was audited");
+    assert(
+      rows.some((r) => r.detail.crew_rank?.to === "Underboss"),
+      "the promotion to Underboss was not captured",
+    );
   });
 
-  await check("an admin edit to a reputation entry is audited", async () => {
-    await as(adminId, "update public.reputation_entries set points = 20 where id = $1;", [repId]);
-    const { rows } = await asSystem("select detail from public.audit_log where action = 'reputation.edit';");
-    assert(rows.length === 1, "the reputation edit was not audited");
-    assert(rows[0].detail.points.to === 20, "the audited diff is wrong");
+  await check("assigning and moving a member on the ladder is audited", async () => {
+    const { rows } = await asSystem(
+      "select detail from public.audit_log where action = 'rep.tier_change' order by created_at;",
+    );
+    assert(rows.length >= 2, `expected at least 2 tier-change audits, got ${rows.length}`);
+    assert(
+      rows.some((r) => r.detail.tier?.from === null && r.detail.tier?.to === seeded.rows[0].tier_label),
+      "the first assignment was not audited",
+    );
+    assert(
+      rows.some(
+        (r) =>
+          r.detail.tier?.from === seeded.rows[0].tier_label &&
+          r.detail.tier?.to === tierHighLabel,
+      ),
+      "the promotion was not audited",
+    );
   });
 
   await check("voiding a remit entry preserves a copy in the audit log", async () => {
-    await as(adminId, "delete from public.remit_logs where id = $1;", [remitId]);
+    await as(underbossId, "delete from public.remit_logs where id = $1;", [remitId]);
     const { rows } = await asSystem("select detail from public.audit_log where action = 'remit.delete';");
     assert(rows.length === 1, "the deletion was not audited");
     assert(Number(rows[0].detail.deleted.amount) === 5000, "the deleted row was not snapshotted");
@@ -441,35 +712,54 @@ async function main() {
 
   await denied(
     "nobody can write to the audit log directly",
-    () => as(adminId, "insert into public.audit_log (actor_id, action) values ($1, 'forged');", [adminId]),
+    () => as(kingpinId, "insert into public.audit_log (actor_id, action) values ($1, 'forged');", [kingpinId]),
     "permission denied",
   );
 
   await denied(
     "nobody can erase audit history",
-    () => as(adminId, "delete from public.audit_log;"),
+    () => as(kingpinId, "delete from public.audit_log;"),
     "permission denied",
   );
 
   console.log("\nDeactivation");
 
-  await check("deactivating an officer strips their write access", async () => {
-    await as(adminId, "update public.profiles set is_active = false where id = $1;", [officerId]);
+  await check("deactivating a Captain strips their write access", async () => {
+    await as(kingpinId, "update public.profiles set is_active = false where id = $1;", [captainId]);
     let blocked = false;
     try {
       await as(
-        officerId,
-        "insert into public.reputation_entries (member_id, points, reason, given_by) values ($1, 5, 'still here', $2);",
-        [memberId, officerId],
+        captainId,
+        "update public.member_rep set current_tier_id = $1, updated_by = $2 where member_id = $3;",
+        [tierLowId, captainId, operatorId],
       );
     } catch {
       blocked = true;
     }
-    assert(blocked, "a deactivated officer could still grant reputation");
+    // RLS update with no matching rows returns 0 affected without throwing.
+    if (!blocked) {
+      const { rows } = await asSystem("select current_tier_id from public.member_rep where member_id = $1;", [
+        operatorId,
+      ]);
+      blocked = rows[0].current_tier_id === tierHighId;
+    }
+    assert(blocked, "a deactivated Captain could still move members on the ladder");
   });
 
-  await check("a deactivated member keeps their history", async () => {
-    const { rows } = await asSystem("select total_rep from public.member_summary where id = $1;", [officerId]);
+  await denied(
+    "a deactivated member cannot even log their own remit",
+    () =>
+      as(
+        captainId,
+        `insert into public.remit_logs (member_id, remit_type_id, quantity, submitted_by)
+         values ($1, $2, 1, $1);`,
+        [captainId, launderingType.id],
+      ),
+    "row-level security",
+  );
+
+  await check("a deactivated member keeps their summary row", async () => {
+    const { rows } = await asSystem("select id from public.member_summary where id = $1;", [captainId]);
     assert(rows.length === 1, "the deactivated member vanished from the summary");
   });
 

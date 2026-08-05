@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search, Users } from "lucide-react";
 
+import { CraftingUnlockBadges } from "@/components/reputation/crafting-unlocks";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
-import { RoleBadge } from "@/components/nav/role-badge";
-import { Badge } from "@/components/ui/badge";
+import { RankBadge } from "@/components/nav/rank-badge";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -16,28 +16,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CREW_RANKS } from "@/lib/constants";
 import { displayName } from "@/lib/display";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { MemberSummary } from "@/lib/types/app";
+import { rankWeight, type MemberSummary } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
-type SortKey = "name" | "rank" | "rep" | "remit" | "joined";
+type SortKey = "name" | "rank" | "tier" | "remit" | "joined";
 type Direction = "asc" | "desc";
 
 const DEFAULT_DIRECTION: Record<SortKey, Direction> = {
   name: "asc",
   rank: "desc",
-  rep: "desc",
+  tier: "desc",
   remit: "desc",
   joined: "asc",
 };
-
-/** Unknown ranks sort below every known one rather than alphabetically. */
-function rankWeight(rank: string | null): number {
-  const index = CREW_RANKS.indexOf(rank as (typeof CREW_RANKS)[number]);
-  return index === -1 ? -1 : index;
-}
 
 function compare(a: MemberSummary, b: MemberSummary, key: SortKey): number {
   switch (key) {
@@ -47,8 +40,8 @@ function compare(a: MemberSummary, b: MemberSummary, key: SortKey): number {
       });
     case "rank":
       return rankWeight(a.crew_rank) - rankWeight(b.crew_rank);
-    case "rep":
-      return Number(a.total_rep) - Number(b.total_rep);
+    case "tier":
+      return (a.tier_level_order ?? -1) - (b.tier_level_order ?? -1);
     case "remit":
       return Number(a.total_approved_remit) - Number(b.total_approved_remit);
     case "joined":
@@ -58,7 +51,6 @@ function compare(a: MemberSummary, b: MemberSummary, key: SortKey): number {
   }
 }
 
-/** A column header that doubles as a sort control. */
 function SortableHead({
   label,
   sortKey,
@@ -79,7 +71,6 @@ function SortableHead({
   const Icon = !active ? ChevronsUpDown : direction === "asc" ? ArrowUp : ArrowDown;
 
   return (
-    // aria-sort belongs on the header cell, not on the button inside it.
     <TableHead
       aria-sort={
         active ? (direction === "asc" ? "ascending" : "descending") : "none"
@@ -103,7 +94,7 @@ function SortableHead({
 
 export function RosterTable({ members }: { members: MemberSummary[] }) {
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("rep");
+  const [sortKey, setSortKey] = useState<SortKey>("tier");
   const [direction, setDirection] = useState<Direction>("desc");
 
   function handleSort(key: SortKey) {
@@ -120,13 +111,12 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
 
     const filtered = needle
       ? members.filter((m) =>
-          [m.ingame_name, m.discord_username, m.crew_rank, m.role]
+          [m.ingame_name, m.discord_username, m.crew_rank, m.tier_label]
             .filter(Boolean)
             .some((field) => field!.toLowerCase().includes(needle)),
         )
       : members;
 
-    // Copy before sorting: the prop array is owned by the server component.
     return [...filtered].sort((a, b) => {
       const result = compare(a, b, sortKey);
       return direction === "asc" ? result : -result;
@@ -141,7 +131,7 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search name, rank or role"
+          placeholder="Search name, rank or tier"
           aria-label="Search the roster"
           className="pl-9"
         />
@@ -154,7 +144,7 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
             title={query ? "No members match that search" : "The roster is empty"}
             description={
               query
-                ? "Try a different name, rank or role."
+                ? "Try a different name, rank or tier."
                 : "Members appear here the first time they sign in with Discord."
             }
           />
@@ -178,12 +168,11 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
                   className="hidden sm:table-cell"
                 />
                 <SortableHead
-                  label="Rep"
-                  sortKey="rep"
-                  active={sortKey === "rep"}
+                  label="Rep tier"
+                  sortKey="tier"
+                  active={sortKey === "tier"}
                   direction={direction}
                   onSort={handleSort}
-                  align="right"
                 />
                 <SortableHead
                   label="Remit"
@@ -207,53 +196,42 @@ export function RosterTable({ members }: { members: MemberSummary[] }) {
             </TableHeader>
 
             <TableBody>
-              {visible.map((member) => {
-                const rep = Number(member.total_rep);
+              {visible.map((member) => (
+                <TableRow key={member.id}>
+                  <TableCell>
+                    <PersonCell person={member} />
+                    <div className="mt-1.5 flex items-center gap-2 sm:hidden">
+                      <RankBadge rank={member.crew_rank} />
+                    </div>
+                  </TableCell>
 
-                return (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <PersonCell person={member} />
-                        {member.role !== "member" && (
-                          <RoleBadge
-                            role={member.role}
-                            className="hidden shrink-0 md:inline-flex"
-                          />
-                        )}
+                  <TableCell className="hidden sm:table-cell">
+                    <RankBadge rank={member.crew_rank} />
+                  </TableCell>
+
+                  <TableCell>
+                    {member.tier_label ? (
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium">{member.tier_label}</p>
+                        <CraftingUnlockBadges
+                          tier={member}
+                          className="hidden lg:flex"
+                        />
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 sm:hidden">
-                        <Badge variant="secondary" className="text-[0.7rem]">
-                          {member.crew_rank ?? "Recruit"}
-                        </Badge>
-                        {member.role !== "member" && <RoleBadge role={member.role} />}
-                      </div>
-                    </TableCell>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
 
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="secondary">{member.crew_rank ?? "Recruit"}</Badge>
-                    </TableCell>
+                  <TableCell className="tabular text-muted-foreground hidden text-right md:table-cell">
+                    {formatMoney(member.total_approved_remit)}
+                  </TableCell>
 
-                    <TableCell
-                      className={cn(
-                        "tabular text-right font-semibold",
-                        rep > 0 && "text-[var(--success)]",
-                        rep < 0 && "text-destructive",
-                      )}
-                    >
-                      {rep > 0 ? `+${rep}` : rep}
-                    </TableCell>
-
-                    <TableCell className="tabular text-muted-foreground hidden text-right md:table-cell">
-                      {formatMoney(member.total_approved_remit)}
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground hidden text-right text-xs whitespace-nowrap lg:table-cell">
-                      {formatDate(member.created_at)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                  <TableCell className="text-muted-foreground hidden text-right text-xs whitespace-nowrap lg:table-cell">
+                    {formatDate(member.created_at)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

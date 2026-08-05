@@ -5,15 +5,19 @@ export type AuditTone = "neutral" | "positive" | "negative" | "warning";
 type AuditMeta = { label: string; tone: AuditTone };
 
 const ACTIONS: Record<string, AuditMeta> = {
+  // Retired when role and rank merged, kept so older entries still read cleanly.
   "role.change": { label: "Role changed", tone: "warning" },
-  "rank.change": { label: "Rank changed", tone: "neutral" },
+  // Rank is the permission now, so a rank change is a privilege change.
+  "rank.change": { label: "Rank changed", tone: "warning" },
   "member.deactivate": { label: "Member deactivated", tone: "negative" },
   "member.reactivate": { label: "Member reactivated", tone: "positive" },
   "remit.status": { label: "Remit reviewed", tone: "neutral" },
   "remit.edit": { label: "Remit edited", tone: "warning" },
   "remit.delete": { label: "Remit voided", tone: "negative" },
+  // Retired with the points ledger; kept so older audit rows still read cleanly.
   "reputation.edit": { label: "Reputation edited", tone: "warning" },
   "reputation.delete": { label: "Reputation voided", tone: "negative" },
+  "rep.tier_change": { label: "Rep tier changed", tone: "warning" },
 };
 
 export function describeAction(action: string): AuditMeta {
@@ -26,7 +30,7 @@ const HIDDEN_FIELDS = new Set(["member", "member_id", "deleted"]);
 
 const FIELD_LABELS: Record<string, string> = {
   amount: "Amount",
-  crew_rank: "Crew rank",
+  crew_rank: "Rank",
   description: "Description",
   is_active: "Active",
   points: "Points",
@@ -34,6 +38,9 @@ const FIELD_LABELS: Record<string, string> = {
   reviewed_by: "Reviewed by",
   role: "Role",
   status: "Status",
+  tier: "Tier",
+  quantity: "Quantity",
+  remit_type_id: "Remit type",
 };
 
 export function fieldLabel(field: string): string {

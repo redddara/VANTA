@@ -105,7 +105,7 @@ export function MemberCombobox({
                     <MemberAvatar profile={member} className="size-6" />
                     <span className="min-w-0 flex-1 truncate">{name}</span>
                     <span className="text-muted-foreground shrink-0 text-xs">
-                      {member.crew_rank ?? "Recruit"}
+                      {member.crew_rank ?? "Prospect"}
                     </span>
                     <Check
                       className={cn(

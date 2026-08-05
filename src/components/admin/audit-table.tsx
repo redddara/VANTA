@@ -30,9 +30,9 @@ import { cn } from "@/lib/utils";
 
 const TONE_CLASS: Record<AuditTone, string> = {
   neutral: "border-border text-muted-foreground",
-  positive: "border-[color-mix(in_oklab,var(--success)_35%,transparent)] text-[var(--success)]",
+  positive: "border-success/35 text-success",
   negative: "border-destructive/40 text-destructive",
-  warning: "border-[color-mix(in_oklab,var(--warning)_35%,transparent)] text-[var(--warning)]",
+  warning: "border-warning/35 text-warning",
 };
 
 function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
@@ -46,7 +46,7 @@ function ChangeList({ entry }: { entry: AuditLogEntryWithActor }) {
       .join(" · ");
 
     return (
-      <p className="text-muted-foreground text-xs break-words">{summary}</p>
+      <p className="text-muted-foreground text-xs wrap-break-word">{summary}</p>
     );
   }
 

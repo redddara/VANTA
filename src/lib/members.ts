@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Active members, ordered for a picker.
  *
- * Inactive members are excluded so officers cannot file remit or reputation
+ * Inactive members are excluded so staff cannot file remit or set reputation
  * against someone who has left the crew.
  */
 export async function getSelectableMembers(): Promise<SelectableMember[]> {

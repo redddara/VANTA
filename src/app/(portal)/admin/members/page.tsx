@@ -22,7 +22,7 @@ export default async function AdminMembersPage() {
     <>
       <PageHeader
         title="Members"
-        description="Set portal roles, crew ranks and active status. Every change is written to the audit log."
+        description="Set crew ranks and active status. Every change is written to the audit log."
       />
       <MembersTable members={data ?? []} currentUserId={profile.id} />
     </>

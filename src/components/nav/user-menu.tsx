@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ROLE_LABELS } from "@/lib/constants";
 import type { Profile } from "@/lib/types/app";
 
 export function UserMenu({
@@ -39,8 +38,7 @@ export function UserMenu({
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="truncate">{name}</span>
           <span className="text-muted-foreground text-xs font-normal">
-            {ROLE_LABELS[profile.role]}
-            {profile.crew_rank ? ` · ${profile.crew_rank}` : ""}
+            {profile.crew_rank}
           </span>
         </DropdownMenuLabel>
 

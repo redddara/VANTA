@@ -28,7 +28,7 @@ export function StatCard({
           <p
             className={cn(
               "tabular mt-2 text-2xl leading-none font-semibold sm:text-3xl",
-              tone === "positive" && "text-[var(--success)]",
+              tone === "positive" && "text-success",
               tone === "negative" && "text-destructive",
               tone === "accent" && "text-primary",
             )}

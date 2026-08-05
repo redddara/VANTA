@@ -42,7 +42,7 @@ export function VantaWordmark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "font-[family-name:var(--font-display)] text-xl leading-none font-semibold tracking-[0.32em] uppercase",
+        "font-display text-xl leading-none font-semibold tracking-[0.32em] uppercase",
         className,
       )}
     >

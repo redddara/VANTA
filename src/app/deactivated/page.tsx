@@ -25,14 +25,14 @@ export default async function DeactivatedPage() {
 
         <div className="text-muted-foreground mb-4 flex items-center justify-center gap-2">
           <UserX className="size-5" />
-          <h1 className="font-[family-name:var(--font-display)] text-xl tracking-wide uppercase">
+          <h1 className="font-display text-xl tracking-wide uppercase">
             Account inactive
           </h1>
         </div>
 
         <p className="text-muted-foreground text-sm leading-relaxed text-balance">
           Your Vanta account has been set to inactive, so the portal is
-          read-locked for you. Your remit and reputation history is intact. Ask
+          read-locked for you. Your remit history and reputation tier are intact. Ask
           an admin to reactivate you.
         </p>
 
