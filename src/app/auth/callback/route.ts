@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next");
+  const oauthError = searchParams.get("error");
+  const oauthDescription = searchParams.get("error_description");
 
   // Only allow same-origin relative paths, so ?next= cannot bounce a member
   // to an attacker's site after a legitimate login.
@@ -29,7 +31,11 @@ export async function GET(request: NextRequest) {
   const base = isLocal || !forwardedHost ? origin : `https://${forwardedHost}`;
 
   if (!code) {
-    return NextResponse.redirect(`${base}/auth/auth-code-error`);
+    const detail =
+      oauthDescription || oauthError || "No authorization code returned.";
+    return NextResponse.redirect(
+      `${base}/auth/auth-code-error?reason=${encodeURIComponent(detail)}`,
+    );
   }
 
   let response = NextResponse.redirect(`${base}${destination}`);

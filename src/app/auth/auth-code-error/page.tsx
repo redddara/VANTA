@@ -58,8 +58,18 @@ export default async function AuthCodeErrorPage({
 
         <p className="text-muted-foreground text-sm leading-relaxed text-balance">
           {copy?.body ??
-            "Discord did not complete the handshake. This is usually a redirect URL that does not match the one configured in the Discord Developer Portal."}
+            "Discord did not complete the handshake. Most often the member opened the wrong portal link, or that link is missing from Supabase Redirect URLs."}
         </p>
+
+        {!copy ? (
+          <p className="text-muted-foreground mt-3 text-sm leading-relaxed text-balance">
+            Crew should sign in only at{" "}
+            <span className="text-foreground font-medium">
+              vanta-two-xi.vercel.app
+            </span>
+            . Send the gray box below to an admin if it keeps failing.
+          </p>
+        ) : null}
 
         {reason && (
           <p className="text-muted-foreground/80 bg-card mt-4 rounded-md border p-3 text-left font-mono text-xs wrap-break-word">

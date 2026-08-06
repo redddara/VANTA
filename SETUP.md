@@ -175,16 +175,22 @@ Go to **Authentication → URL Configuration** and set:
 
 - **Site URL**: `https://vanta-two-xi.vercel.app` (production). Keep localhost
   in Redirect URLs so local `npm run dev` still works.
-- **Redirect URLs**: add both of these, one per line:
+- **Redirect URLs**: add all of these, one per line:
 
 ```
 http://localhost:3000/**
 http://localhost:3001/**
 https://vanta-two-xi.vercel.app/**
+https://vanta-todolists-projects-dc47b6ee.vercel.app/**
+https://vanta-git-main-todolists-projects-dc47b6ee.vercel.app/**
 ```
 
 Include **both** localhost ports — if `3000` is already taken, Next.js moves to
 `3001`, and Discord sign-in fails unless that origin is listed.
+
+Tell crew members to open only **https://vanta-two-xi.vercel.app** — preview
+URLs like `vanta-xxxxx-todolists-projects-dc47b6ee.vercel.app` will fail sign-in
+unless you add that exact URL to Redirect URLs too.
 
 The wildcard covers `/auth/callback` plus the `?next=` parameter the portal uses
 to send members back to the page they asked for.
