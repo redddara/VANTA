@@ -28,7 +28,7 @@ export const AUDIT_SELECT = `
 
 export const MEMBER_SUMMARY_SELECT = `
   id, discord_username, discord_avatar_url, ingame_name, crew_rank,
-  is_active, created_at, rep_band, tier_label,
+  is_active, hacking_practice_access, created_at, rep_band, tier_label,
   house_rob_payout, atm_payout, launder_rate, store_capacity,
   gps_unlocked, rope_unlocked, nos_unlocked, usb_unlocked,
   total_approved_remit, pending_remit_count

@@ -284,6 +284,7 @@ export type Database = {
           crew_rank: string
           discord_avatar_url: string | null
           discord_username: string | null
+          hacking_practice_access: boolean
           id: string
           ingame_name: string | null
           is_active: boolean
@@ -293,6 +294,7 @@ export type Database = {
           crew_rank?: string
           discord_avatar_url?: string | null
           discord_username?: string | null
+          hacking_practice_access?: boolean
           id: string
           ingame_name?: string | null
           is_active?: boolean
@@ -302,6 +304,7 @@ export type Database = {
           crew_rank?: string
           discord_avatar_url?: string | null
           discord_username?: string | null
+          hacking_practice_access?: boolean
           id?: string
           ingame_name?: string | null
           is_active?: boolean
@@ -681,6 +684,7 @@ export type Database = {
           discord_avatar_url: string | null
           discord_username: string | null
           gps_unlocked: boolean | null
+          hacking_practice_access: boolean | null
           house_rob_payout: string | null
           id: string | null
           ingame_name: string | null
@@ -735,6 +739,7 @@ export type Database = {
           crew_rank: string
           discord_avatar_url: string | null
           discord_username: string | null
+          hacking_practice_access: boolean
           id: string
           ingame_name: string | null
           is_active: boolean

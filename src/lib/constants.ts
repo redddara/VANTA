@@ -25,12 +25,12 @@ type Rank = (typeof RANKS)[number];
 
 export const RANK_DESCRIPTIONS: Record<Rank, string> = {
   Prospect: "Can log remit and see their weekly quota progress and reputation.",
-  Operator: "Can see the roster, remit history, each member's reputation, and hacking practice.",
+  Operator: "Can see the roster, remit history, and each member's reputation.",
 
   Enforcer: "Can log remit for others, view the remit tracker, set reputation, log inventory in/out, and manage strategies.",
   Captain: "Same as Enforcer: crew remit, tracker, reputation, inventory, and strategies.",
   Underboss: "Full control: ranks, remit approval, advance week moves, remit types, inventory items, strategies, reputation, and the audit log.",
-  Kingpin: "Everything an Underboss can do, plus renaming members, and the only rank that can appoint another Kingpin.",
+  Kingpin: "Everything an Underboss can do, plus renaming members, granting Hacking Practice access, and the only rank that can appoint another Kingpin.",
 };
 
 /** How high a member sits on reputation — set by staff with the profile. */

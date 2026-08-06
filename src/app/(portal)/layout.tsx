@@ -9,7 +9,7 @@ export default async function PortalLayout({
   children: React.ReactNode;
 }) {
   const { profile } = await requireSession();
-  const items = visibleNavItems(profile.crew_rank);
+  const items = visibleNavItems(profile);
 
   return (
     <div className="min-h-dvh lg:pl-60">

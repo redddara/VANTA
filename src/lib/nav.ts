@@ -1,4 +1,5 @@
-import { rankWeight, type Rank } from "@/lib/types/app";
+import { canAccessHackingPractice } from "@/lib/features";
+import { rankWeight, type Profile, type Rank } from "@/lib/types/app";
 
 export type NavItem = {
   href: string;
@@ -13,7 +14,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/roster", label: "Roster", minRank: "Operator", group: "main" },
   { href: "/strategies", label: "Strategies", minRank: "Prospect", group: "main" },
   { href: "/hacking", label: "Hacking Practice", minRank: "Operator", group: "main" },
-
   { href: "/remit/mine", label: "Log Remit", minRank: "Prospect", group: "actions" },
   { href: "/remit/tracker", label: "Remit Tracker", minRank: "Enforcer", group: "actions" },
   { href: "/inventory", label: "Inventory", minRank: "Enforcer", group: "actions" },
@@ -30,9 +30,14 @@ export const NAV_GROUP_LABELS: Record<NavItem["group"], string> = {
   admin: "Admin",
 };
 
-export function visibleNavItems(rank: Rank): NavItem[] {
-  const weight = rankWeight(rank);
-  return NAV_ITEMS.filter((item) => weight >= rankWeight(item.minRank));
+export function visibleNavItems(
+  profile: Pick<Profile, "crew_rank" | "hacking_practice_access">,
+): NavItem[] {
+  const weight = rankWeight(profile.crew_rank);
+  return NAV_ITEMS.filter((item) => {
+    if (item.href === "/hacking") return canAccessHackingPractice(profile);
+    return weight >= rankWeight(item.minRank);
+  });
 }
 
 export function isActivePath(pathname: string, href: string): boolean {

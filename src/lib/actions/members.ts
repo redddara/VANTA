@@ -22,6 +22,7 @@ const UpdateMemberSchema = z.object({
   rank: z.enum(RANKS),
   isActive: z.boolean(),
   ingameName: IngameNameSchema.optional(),
+  hackingPracticeAccess: z.boolean().optional(),
 });
 
 const UpdateOwnProfileSchema = z.object({
@@ -35,6 +36,7 @@ function revalidateMembers() {
   revalidatePath("/dashboard");
   revalidatePath("/reputation/new");
   revalidatePath("/remit/tracker");
+  revalidatePath("/hacking");
 }
 
 /**
@@ -43,24 +45,30 @@ function revalidateMembers() {
  * remove the last active Kingpin, and lets only a Kingpin appoint another. All
  * three hold even if this action is called directly.
  *
- * Renaming another member is Kingpin-only (also enforced in the DB guard).
+ * Renaming and Hacking Practice access are Kingpin-only (also enforced in DB).
  */
 export async function updateMember(input: {
   id: string;
   rank: Rank;
   isActive: boolean;
   ingameName?: string;
+  hackingPracticeAccess?: boolean;
 }): Promise<ActionResult> {
   const parsed = UpdateMemberSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const { profile } = await requireAdmin();
+  const kingpin = isKingpin(profile.crew_rank);
 
-  if (
-    parsed.data.ingameName !== undefined &&
-    !isKingpin(profile.crew_rank)
-  ) {
+  if (parsed.data.ingameName !== undefined && !kingpin) {
     return { ok: false, error: "Only a Kingpin can rename another member." };
+  }
+
+  if (parsed.data.hackingPracticeAccess !== undefined && !kingpin) {
+    return {
+      ok: false,
+      error: "Only a Kingpin can grant Hacking Practice access.",
+    };
   }
 
   const supabase = await createClient();
@@ -69,12 +77,16 @@ export async function updateMember(input: {
     crew_rank: Rank;
     is_active: boolean;
     ingame_name?: string;
+    hacking_practice_access?: boolean;
   } = {
     crew_rank: parsed.data.rank,
     is_active: parsed.data.isActive,
   };
   if (parsed.data.ingameName !== undefined) {
     patch.ingame_name = parsed.data.ingameName;
+  }
+  if (parsed.data.hackingPracticeAccess !== undefined) {
+    patch.hacking_practice_access = parsed.data.hackingPracticeAccess;
   }
 
   const { error, count } = await supabase

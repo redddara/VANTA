@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { canAccessHackingPractice } from "@/lib/features";
 import type { Database } from "@/lib/types/database.types";
-import { canViewRoster } from "@/lib/types/app";
 
 /** Routes reachable without a session. Everything else redirects to /login. */
 const PUBLIC_PATHS = [
@@ -19,13 +19,13 @@ function isPublicPath(pathname: string) {
   );
 }
 
-/** HTML entry points for the practice pack — Operator+ only (same as /hacking). */
-function isHackingPracticeEntry(pathname: string) {
+/** Practice pack HTML / portal route — allowlisted Discord accounts only. */
+function isHackingPracticePath(pathname: string) {
   return (
+    pathname === "/hacking" ||
+    pathname.startsWith("/hacking/") ||
     pathname === "/hacking-practice" ||
-    pathname === "/hacking-practice/" ||
-    pathname === "/hacking-practice/index.html" ||
-    pathname === "/hacking-practice/thermite.html"
+    pathname.startsWith("/hacking-practice/")
   );
 }
 
@@ -105,14 +105,14 @@ export async function updateSession(request: NextRequest) {
     return redirectKeepingCookies(redirectUrl);
   }
 
-  if (user && isHackingPracticeEntry(pathname)) {
+  if (user && isHackingPracticePath(pathname)) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("crew_rank")
+      .select("hacking_practice_access")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!canViewRoster(profile?.crew_rank ?? null)) {
+    if (!canAccessHackingPractice(profile)) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/dashboard";
       redirectUrl.search = "";

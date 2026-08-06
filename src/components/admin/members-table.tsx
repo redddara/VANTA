@@ -36,10 +36,12 @@ export function MembersTable({
   members,
   currentUserId,
   canRename,
+  canGrantHacking,
 }: {
   members: MemberSummary[];
   currentUserId: string;
   canRename: boolean;
+  canGrantHacking: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("active");
@@ -204,6 +206,7 @@ export function MembersTable({
         onOpenChange={(open) => !open && setEditing(null)}
         isSelf={editing?.id === currentUserId}
         canRename={canRename}
+        canGrantHacking={canGrantHacking}
       />
     </>
   );

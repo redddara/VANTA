@@ -24,7 +24,7 @@ export default async function AdminMembersPage() {
         title="Members"
         description={
           isKingpin(profile.crew_rank)
-            ? "Set crew ranks, active status, and in-game names. Every change is written to the audit log."
+            ? "Set crew ranks, active status, in-game names, and Hacking Practice access. Every change is written to the audit log."
             : "Set crew ranks and active status. Every change is written to the audit log."
         }
       />
@@ -32,6 +32,7 @@ export default async function AdminMembersPage() {
         members={data ?? []}
         currentUserId={profile.id}
         canRename={isKingpin(profile.crew_rank)}
+        canGrantHacking={isKingpin(profile.crew_rank)}
       />
     </>
   );

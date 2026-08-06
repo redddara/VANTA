@@ -39,11 +39,13 @@ function EditorBody({
   member,
   isSelf,
   canRename,
+  canGrantHacking,
   onDone,
 }: {
   member: MemberSummary;
   isSelf: boolean;
   canRename: boolean;
+  canGrantHacking: boolean;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -52,14 +54,21 @@ function EditorBody({
   const [rank, setRank] = useState<Rank>(normaliseRank(member.crew_rank));
   const [isActive, setIsActive] = useState(member.is_active);
   const [ingameName, setIngameName] = useState(member.ingame_name ?? "");
+  const [hackingAccess, setHackingAccess] = useState(
+    Boolean(member.hacking_practice_access),
+  );
 
   const name = displayName(member);
   const nameDirty =
     canRename && ingameName.trim() !== (member.ingame_name ?? "").trim();
+  const hackingDirty =
+    canGrantHacking &&
+    hackingAccess !== Boolean(member.hacking_practice_access);
   const dirty =
     rank !== member.crew_rank ||
     isActive !== member.is_active ||
-    nameDirty;
+    nameDirty ||
+    hackingDirty;
 
   function save() {
     startTransition(async () => {
@@ -68,6 +77,7 @@ function EditorBody({
         rank,
         isActive,
         ...(canRename ? { ingameName: ingameName.trim() } : {}),
+        ...(canGrantHacking ? { hackingPracticeAccess: hackingAccess } : {}),
       });
 
       if (!result.ok) {
@@ -75,7 +85,12 @@ function EditorBody({
         return;
       }
 
-      toast.success(`${displayName({ ...member, ingame_name: ingameName.trim() || member.ingame_name })} updated.`);
+      toast.success(
+        `${displayName({
+          ...member,
+          ingame_name: ingameName.trim() || member.ingame_name,
+        })} updated.`,
+      );
       onDone();
       router.refresh();
     });
@@ -154,6 +169,25 @@ function EditorBody({
           />
         </div>
 
+        {canGrantHacking ? (
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="min-w-0">
+              <Label htmlFor="member-hacking" className="mb-1">
+                Hacking Practice access
+              </Label>
+              <p className="text-muted-foreground text-xs">
+                Lets this member open the private practice page. Keep it off for
+                everyone else.
+              </p>
+            </div>
+            <Switch
+              id="member-hacking"
+              checked={hackingAccess}
+              onCheckedChange={setHackingAccess}
+            />
+          </div>
+        ) : null}
+
         {isSelf && !isAdmin(rank) && (
           <p className="text-warning border-warning/30 bg-warning/10 rounded-md border p-3 text-xs">
             This is your own account. Dropping below Underboss will lock you out
@@ -181,12 +215,14 @@ export function MemberEditorDialog({
   onOpenChange,
   isSelf,
   canRename,
+  canGrantHacking,
 }: {
   member: MemberSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isSelf: boolean;
   canRename: boolean;
+  canGrantHacking: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -198,6 +234,7 @@ export function MemberEditorDialog({
             member={member}
             isSelf={isSelf}
             canRename={canRename}
+            canGrantHacking={canGrantHacking}
             onDone={() => onOpenChange(false)}
           />
         )}

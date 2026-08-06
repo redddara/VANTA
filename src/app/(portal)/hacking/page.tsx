@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import { requireRoster } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { canAccessHackingPractice } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Hacking Practice" };
 
 export default async function HackingPracticePage() {
-  await requireRoster();
+  const { profile } = await requireSession();
+  if (!canAccessHackingPractice(profile)) redirect("/dashboard");
 
   return (
     <>
       <PageHeader
         title="Hacking Practice"
-        description="Practice the store and ammunation robbery minigames — thermite, crate, USB hack, door pairs, and more. Operator+ only."
+        description="Private practice for store and ammunation minigames. Access is granted per member by the Kingpin."
         actions={
           <a
             href="/hacking-practice/index.html"

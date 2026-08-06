@@ -357,6 +357,30 @@ async function main() {
     assert(rows[0].ingame_name === "RenamedOp", "Kingpin rename did not stick");
   });
 
+  await denied(
+    "an Underboss cannot grant Hacking Practice access",
+    () =>
+      as(
+        underbossId,
+        "update public.profiles set hacking_practice_access = true where id = $1;",
+        [operatorId],
+      ),
+    "Only a Kingpin can grant Hacking Practice",
+  );
+
+  await check("a Kingpin can grant Hacking Practice access", async () => {
+    await as(
+      kingpinId,
+      "update public.profiles set hacking_practice_access = true where id = $1;",
+      [operatorId],
+    );
+    const { rows } = await asSystem(
+      "select hacking_practice_access from public.profiles where id = $1;",
+      [operatorId],
+    );
+    assert(rows[0].hacking_practice_access === true, "access grant did not stick");
+  });
+
   await check("an Underboss can set ranks", async () => {
     await as(underbossId, "update public.profiles set crew_rank = 'Enforcer' where id = $1;", [captainId]);
     assert((await rankOf(captainId)) === "Enforcer", "the Underboss update did not apply");

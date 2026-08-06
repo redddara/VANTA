@@ -98,6 +98,7 @@ export type MemberSummary = {
   ingame_name: string | null;
   crew_rank: Rank;
   is_active: boolean;
+  hacking_practice_access: boolean;
   created_at: string;
   rep_band: RepBand | null;
   tier_label: string | null;
