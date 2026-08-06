@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { requireAdmin } from "@/lib/auth";
 import { MEMBER_SUMMARY_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import type { MemberSummary } from "@/lib/types/app";
+import { isKingpin, type MemberSummary } from "@/lib/types/app";
 
 export const metadata: Metadata = { title: "Members" };
 
@@ -22,9 +22,17 @@ export default async function AdminMembersPage() {
     <>
       <PageHeader
         title="Members"
-        description="Set crew ranks and active status. Every change is written to the audit log."
+        description={
+          isKingpin(profile.crew_rank)
+            ? "Set crew ranks, active status, and in-game names. Every change is written to the audit log."
+            : "Set crew ranks and active status. Every change is written to the audit log."
+        }
       />
-      <MembersTable members={data ?? []} currentUserId={profile.id} />
+      <MembersTable
+        members={data ?? []}
+        currentUserId={profile.id}
+        canRename={isKingpin(profile.crew_rank)}
+      />
     </>
   );
 }

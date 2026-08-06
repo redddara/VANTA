@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -37,10 +38,12 @@ function normaliseRank(rank: string | null): Rank {
 function EditorBody({
   member,
   isSelf,
+  canRename,
   onDone,
 }: {
   member: MemberSummary;
   isSelf: boolean;
+  canRename: boolean;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -48,9 +51,15 @@ function EditorBody({
 
   const [rank, setRank] = useState<Rank>(normaliseRank(member.crew_rank));
   const [isActive, setIsActive] = useState(member.is_active);
+  const [ingameName, setIngameName] = useState(member.ingame_name ?? "");
 
   const name = displayName(member);
-  const dirty = rank !== member.crew_rank || isActive !== member.is_active;
+  const nameDirty =
+    canRename && ingameName.trim() !== (member.ingame_name ?? "").trim();
+  const dirty =
+    rank !== member.crew_rank ||
+    isActive !== member.is_active ||
+    nameDirty;
 
   function save() {
     startTransition(async () => {
@@ -58,6 +67,7 @@ function EditorBody({
         id: member.id,
         rank,
         isActive,
+        ...(canRename ? { ingameName: ingameName.trim() } : {}),
       });
 
       if (!result.ok) {
@@ -65,7 +75,7 @@ function EditorBody({
         return;
       }
 
-      toast.success(`${name} updated.`);
+      toast.success(`${displayName({ ...member, ingame_name: ingameName.trim() || member.ingame_name })} updated.`);
       onDone();
       router.refresh();
     });
@@ -86,6 +96,24 @@ function EditorBody({
       </DialogHeader>
 
       <div className="grid gap-5 py-1">
+        {canRename ? (
+          <div className="grid gap-2">
+            <Label htmlFor="member-ingame-name">In-game name</Label>
+            <Input
+              id="member-ingame-name"
+              value={ingameName}
+              onChange={(event) => setIngameName(event.target.value)}
+              placeholder="Crew display name"
+              maxLength={40}
+              autoComplete="off"
+            />
+            <p className="text-muted-foreground text-xs">
+              Shown on the roster, remit tracker, and reputation pages. Only a
+              Kingpin can change another member&apos;s name.
+            </p>
+          </div>
+        ) : null}
+
         <div className="grid gap-2">
           <Label htmlFor="member-rank">Rank</Label>
           <Select
@@ -152,11 +180,13 @@ export function MemberEditorDialog({
   open,
   onOpenChange,
   isSelf,
+  canRename,
 }: {
   member: MemberSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isSelf: boolean;
+  canRename: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,6 +197,7 @@ export function MemberEditorDialog({
             key={member.id}
             member={member}
             isSelf={isSelf}
+            canRename={canRename}
             onDone={() => onOpenChange(false)}
           />
         )}

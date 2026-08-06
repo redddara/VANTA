@@ -333,6 +333,30 @@ async function main() {
     "Only an admin can change",
   );
 
+  await denied(
+    "an Underboss cannot rename another member",
+    () =>
+      as(
+        underbossId,
+        "update public.profiles set ingame_name = 'Stolen' where id = $1;",
+        [operatorId],
+      ),
+    "Only a Kingpin can rename",
+  );
+
+  await check("a Kingpin can rename another member", async () => {
+    await as(
+      kingpinId,
+      "update public.profiles set ingame_name = 'RenamedOp' where id = $1;",
+      [operatorId],
+    );
+    const { rows } = await asSystem(
+      "select ingame_name from public.profiles where id = $1;",
+      [operatorId],
+    );
+    assert(rows[0].ingame_name === "RenamedOp", "Kingpin rename did not stick");
+  });
+
   await check("an Underboss can set ranks", async () => {
     await as(underbossId, "update public.profiles set crew_rank = 'Enforcer' where id = $1;", [captainId]);
     assert((await rankOf(captainId)) === "Enforcer", "the Underboss update did not apply");

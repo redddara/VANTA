@@ -35,9 +35,11 @@ const FILTERS: { value: Filter; label: string }[] = [
 export function MembersTable({
   members,
   currentUserId,
+  canRename,
 }: {
   members: MemberSummary[];
   currentUserId: string;
+  canRename: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("active");
@@ -201,6 +203,7 @@ export function MembersTable({
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
         isSelf={editing?.id === currentUserId}
+        canRename={canRename}
       />
     </>
   );

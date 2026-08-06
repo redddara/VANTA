@@ -30,7 +30,7 @@ export const RANK_DESCRIPTIONS: Record<Rank, string> = {
   Enforcer: "Can log remit for others, view the remit tracker, set reputation, log inventory in/out, and manage strategies.",
   Captain: "Same as Enforcer: crew remit, tracker, reputation, inventory, and strategies.",
   Underboss: "Full control: ranks, remit approval, advance week moves, remit types, inventory items, strategies, reputation, and the audit log.",
-  Kingpin: "Everything an Underboss can do, and the only rank that can appoint another Kingpin.",
+  Kingpin: "Everything an Underboss can do, plus renaming members, and the only rank that can appoint another Kingpin.",
 };
 
 /** How high a member sits on reputation — set by staff with the profile. */

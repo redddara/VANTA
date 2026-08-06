@@ -162,6 +162,11 @@ export function isAdmin(rank: string | null): boolean {
   return rankWeight(rank) >= 4;
 }
 
+/** Only Kingpin may rename other members. */
+export function isKingpin(rank: string | null): boolean {
+  return rank === "Kingpin";
+}
+
 /** Enforcer and up: may submit remit for others, set reputation, and manage inventory. */
 export function isStaff(rank: string | null): boolean {
   return rankWeight(rank) >= 2;
