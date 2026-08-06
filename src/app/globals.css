@@ -125,6 +125,8 @@
 
   html {
     scroll-behavior: smooth;
+    /* Keeps layout from shifting when Radix selects lock body scroll. */
+    scrollbar-gutter: stable;
   }
 
   body {

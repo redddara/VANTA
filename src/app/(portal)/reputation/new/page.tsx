@@ -29,8 +29,8 @@ export default async function SetReputationPage() {
         description="Pick Hacker and/or Driver, house type, launder and store from the lists. Type ATM salary by hand, then Save."
       />
 
-      <Card className="py-4">
-        <CardContent className="px-3 sm:px-6">
+      <Card className="overflow-hidden py-4">
+        <CardContent className="min-w-0 px-3 sm:px-6">
           <SetRepGrid members={members} />
         </CardContent>
       </Card>

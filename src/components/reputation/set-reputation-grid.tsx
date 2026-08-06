@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +15,7 @@ import { toast } from "sonner";
 import { PersonCell } from "@/components/shared/person-cell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,14 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { setMemberRep } from "@/lib/actions/reputation";
 import {
   REP_BANDS,
@@ -132,10 +132,10 @@ function FieldSelect({
       value={selected || (allowEmpty ? EMPTY : undefined)}
       onValueChange={(next) => onChange(next === EMPTY ? "" : next)}
     >
-      <SelectTrigger size="sm" className="h-8 w-full min-w-24">
+      <SelectTrigger size="sm" className="h-9 w-full min-w-0">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent position="popper" className="z-50">
         {allowEmpty ? (
           <SelectItem value={EMPTY}>
             <span className="text-muted-foreground">—</span>
@@ -148,6 +148,25 @@ function FieldSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+function FieldShell({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0 space-y-1.5", className)}>
+      <Label className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        {label}
+      </Label>
+      {children}
+    </div>
   );
 }
 
@@ -280,11 +299,11 @@ export function SetRepGrid({ members }: { members: MemberSummary[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-sm text-balance">
           Label can be Hacker, Driver, or both. ATM salary is typed in; other
           fields use the lists.
         </p>
-        <div className="relative w-full sm:max-w-xs">
+        <div className="relative w-full sm:max-w-xs sm:shrink-0">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             value={query}
@@ -295,180 +314,167 @@ export function SetRepGrid({ members }: { members: MemberSummary[] }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-40">Member</TableHead>
-              <TableHead className="min-w-32">Band</TableHead>
-              <TableHead className="min-w-40">Label</TableHead>
-              <TableHead className="min-w-36">House</TableHead>
-              <TableHead className="min-w-28">ATM</TableHead>
-              <TableHead className="min-w-28">Launder</TableHead>
-              <TableHead className="min-w-28">Store</TableHead>
-              <TableHead className="min-w-40">Craft</TableHead>
-              <TableHead className="w-20" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.map((member) => {
-              const draft = drafts[member.id] ?? draftFrom(member);
-              const labels = draft.labels ?? [];
-              const dirty = !sameDraft(
-                { ...draft, labels },
-                baselineRef.current[member.id] ?? draftFrom(member),
-              );
-              const busy = pending && savingId === member.id;
+      <div className="space-y-3">
+        {visible.map((member) => {
+          const draft = drafts[member.id] ?? draftFrom(member);
+          const labels = draft.labels ?? [];
+          const dirty = !sameDraft(
+            { ...draft, labels },
+            baselineRef.current[member.id] ?? draftFrom(member),
+          );
+          const busy = pending && savingId === member.id;
 
-              return (
-                <TableRow
-                  key={member.id}
-                  className={cn(dirty && "bg-primary/5")}
+          return (
+            <div
+              key={member.id}
+              className={cn(
+                "rounded-lg border p-3 sm:p-4",
+                dirty && "border-primary/35 bg-primary/5",
+              )}
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <PersonCell person={member} />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={dirty ? "default" : "outline"}
+                  disabled={!dirty || busy}
+                  onClick={() => saveRow(member.id)}
+                  className="h-8 shrink-0"
                 >
-                  <TableCell>
-                    <PersonCell person={member} />
-                  </TableCell>
+                  {busy ? <Loader2 className="animate-spin" /> : <Check />}
+                  Save
+                </Button>
+              </div>
 
-                  <TableCell>
-                    <Select
-                      value={draft.repBand}
-                      onValueChange={(band) =>
-                        patch(member.id, { repBand: band as RepBand })
-                      }
-                    >
-                      <SelectTrigger size="sm" className="h-8 w-full min-w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REP_BANDS.map((band) => (
-                          <SelectItem key={band} value={band}>
-                            {REP_BAND_LABELS[band]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <FieldShell label="Band">
+                  <Select
+                    value={draft.repBand}
+                    onValueChange={(band) =>
+                      patch(member.id, { repBand: band as RepBand })
+                    }
+                  >
+                    <SelectTrigger size="sm" className="h-9 w-full min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REP_BANDS.map((band) => (
+                        <SelectItem key={band} value={band}>
+                          {REP_BAND_LABELS[band]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldShell>
 
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {REP_LABEL_OPTIONS.map((label) => {
-                        const on = labels.includes(label);
-                        return (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => toggleLabel(member.id, label)}
-                            className={cn(
-                              "rounded border px-2 py-1 text-xs font-medium",
-                              on
-                                ? "border-primary/40 bg-primary/15 text-primary"
-                                : "border-border/70 text-muted-foreground hover:bg-secondary/60",
-                            )}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </TableCell>
+                <FieldShell label="Label">
+                  <div className="flex min-h-9 flex-wrap items-center gap-1.5">
+                    {REP_LABEL_OPTIONS.map((label) => {
+                      const on = labels.includes(label);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => toggleLabel(member.id, label)}
+                          className={cn(
+                            "rounded border px-2.5 py-1.5 text-xs font-medium",
+                            on
+                              ? "border-primary/40 bg-primary/15 text-primary"
+                              : "border-border/70 text-muted-foreground hover:bg-secondary/60",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FieldShell>
 
-                  <TableCell>
-                    <FieldSelect
-                      value={draft.houseRobPayout}
-                      options={REP_HOUSE_OPTIONS}
-                      placeholder="House"
-                      allowEmpty
-                      onChange={(houseRobPayout) =>
-                        patch(member.id, { houseRobPayout })
-                      }
-                    />
-                  </TableCell>
+                <FieldShell label="House">
+                  <FieldSelect
+                    value={draft.houseRobPayout}
+                    options={REP_HOUSE_OPTIONS}
+                    placeholder="House"
+                    allowEmpty
+                    onChange={(houseRobPayout) =>
+                      patch(member.id, { houseRobPayout })
+                    }
+                  />
+                </FieldShell>
 
-                  <TableCell>
-                    <Input
-                      value={draft.atmPayout}
-                      onChange={(e) =>
-                        patch(member.id, { atmPayout: e.target.value })
-                      }
-                      onFocus={(e) => e.currentTarget.select()}
-                      placeholder="Salary"
-                      className="h-8 tabular"
-                    />
-                  </TableCell>
+                <FieldShell label="ATM salary">
+                  <Input
+                    value={draft.atmPayout}
+                    onChange={(e) =>
+                      patch(member.id, { atmPayout: e.currentTarget.value })
+                    }
+                    onFocus={(e) => e.currentTarget.select()}
+                    placeholder="Salary"
+                    className="h-9 tabular"
+                  />
+                </FieldShell>
 
-                  <TableCell>
-                    <FieldSelect
-                      value={draft.launderRate}
-                      options={REP_LAUNDER_OPTIONS}
-                      placeholder="Launder"
-                      allowEmpty
-                      onChange={(launderRate) =>
-                        patch(member.id, { launderRate })
-                      }
-                    />
-                  </TableCell>
+                <FieldShell label="Launder">
+                  <FieldSelect
+                    value={draft.launderRate}
+                    options={REP_LAUNDER_OPTIONS}
+                    placeholder="Launder"
+                    allowEmpty
+                    onChange={(launderRate) =>
+                      patch(member.id, { launderRate })
+                    }
+                  />
+                </FieldShell>
 
-                  <TableCell>
-                    <FieldSelect
-                      value={draft.storeCapacity}
-                      options={REP_STORE_OPTIONS}
-                      placeholder="Store"
-                      allowEmpty
-                      onChange={(storeCapacity) =>
-                        patch(member.id, { storeCapacity })
-                      }
-                    />
-                  </TableCell>
+                <FieldShell label="Store">
+                  <FieldSelect
+                    value={draft.storeCapacity}
+                    options={REP_STORE_OPTIONS}
+                    placeholder="Store"
+                    allowEmpty
+                    onChange={(storeCapacity) =>
+                      patch(member.id, { storeCapacity })
+                    }
+                  />
+                </FieldShell>
 
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {CRAFTING_UNLOCKS.map((unlock) => {
-                        const field = UNLOCK_KEYS[unlock];
-                        const on = draft[field];
-                        return (
-                          <button
-                            key={unlock}
-                            type="button"
-                            title={CRAFTING_UNLOCK_LABELS[unlock]}
-                            onClick={() =>
-                              patch(member.id, { [field]: !on })
-                            }
-                            className={cn(
-                              "rounded border px-1.5 py-0.5 text-[11px] font-medium",
-                              on
-                                ? "border-success/40 bg-success/15 text-success"
-                                : "border-border/70 text-muted-foreground",
-                            )}
-                          >
-                            {CRAFTING_UNLOCK_LABELS[unlock]}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </TableCell>
+                <FieldShell label="Craft" className="sm:col-span-2 lg:col-span-3">
+                  <div className="flex min-h-9 flex-wrap items-center gap-1.5">
+                    {CRAFTING_UNLOCKS.map((unlock) => {
+                      const field = UNLOCK_KEYS[unlock];
+                      const on = draft[field];
+                      return (
+                        <button
+                          key={unlock}
+                          type="button"
+                          title={CRAFTING_UNLOCK_LABELS[unlock]}
+                          onClick={() =>
+                            patch(member.id, { [field]: !on })
+                          }
+                          className={cn(
+                            "rounded border px-2 py-1.5 text-xs font-medium",
+                            on
+                              ? "border-success/40 bg-success/15 text-success"
+                              : "border-border/70 text-muted-foreground",
+                          )}
+                        >
+                          {CRAFTING_UNLOCK_LABELS[unlock]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FieldShell>
+              </div>
+            </div>
+          );
+        })}
 
-                  <TableCell>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={dirty ? "default" : "outline"}
-                      disabled={!dirty || busy}
-                      onClick={() => saveRow(member.id)}
-                      className="h-8"
-                    >
-                      {busy ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Check />
-                      )}
-                      Save
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        {visible.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
+            No members match that filter.
+          </p>
+        ) : null}
       </div>
     </div>
   );
