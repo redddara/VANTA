@@ -661,6 +661,105 @@ export type Database = {
           },
         ]
       }
+      site_announcement_dismissals: {
+        Row: {
+          announcement_id: string
+          dismissed_at: string
+          member_id: string
+        }
+        Insert: {
+          announcement_id: string
+          dismissed_at?: string
+          member_id: string
+        }
+        Update: {
+          announcement_id?: string
+          dismissed_at?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_announcement_dismissals_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "site_announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_announcement_dismissals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_announcement_dismissals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "site_announcement_dismissals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_announcements: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          title: string
+        }
+        Insert: {
+          audience?: string
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "site_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       strategies: {
         Row: {
           category_id: string
@@ -845,6 +944,10 @@ export type Database = {
       }
     }
     Functions: {
+      vanta_announcement_visible: {
+        Args: { p_audience: string }
+        Returns: boolean
+      }
       vanta_audit: {
         Args: {
           p_action: string
@@ -928,6 +1031,16 @@ export type Database = {
           quota_type_id: string
           quota_type_name: string
           week_start: string
+        }[]
+      }
+      vanta_pending_announcements: {
+        Args: never
+        Returns: {
+          audience: string
+          body: string
+          created_at: string
+          id: string
+          title: string
         }[]
       }
       vanta_rank_weight: { Args: { p_rank: string }; Returns: number }

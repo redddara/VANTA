@@ -87,3 +87,14 @@ export const INVENTORY_DIRECTION_LABELS: Record<
   inbound: "Inbound",
   outbound: "Outbound",
 };
+
+/** Who should see a site update popup. */
+export const ANNOUNCEMENT_AUDIENCES = ["everyone", "staff", "admin"] as const;
+
+export type AnnouncementAudience = (typeof ANNOUNCEMENT_AUDIENCES)[number];
+
+export const ANNOUNCEMENT_AUDIENCE_LABELS: Record<AnnouncementAudience, string> = {
+  everyone: "Everyone",
+  staff: "Staff (Enforcer+)",
+  admin: "Admins (Underboss+)",
+};

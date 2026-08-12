@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/reputation/new", label: "Set Reputation", minRank: "Enforcer", group: "actions" },
   { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
   { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
+  { href: "/admin/announcements", label: "Updates", minRank: "Underboss", group: "admin" },
   { href: "/admin/members", label: "Members", minRank: "Underboss", group: "admin" },
   { href: "/admin/audit", label: "Audit Log", minRank: "Underboss", group: "admin" },
 ];

@@ -1,4 +1,11 @@
-import { RANKS, REP_BANDS, REMIT_STATUSES, INVENTORY_DIRECTIONS } from "@/lib/constants";
+import {
+  ANNOUNCEMENT_AUDIENCES,
+  RANKS,
+  REP_BANDS,
+  REMIT_STATUSES,
+  INVENTORY_DIRECTIONS,
+  type AnnouncementAudience,
+} from "@/lib/constants";
 import type { Tables } from "@/lib/types/database.types";
 
 /**
@@ -9,6 +16,7 @@ export type Rank = (typeof RANKS)[number];
 export type RepBand = (typeof REP_BANDS)[number];
 export type RemitStatus = (typeof REMIT_STATUSES)[number];
 export type InventoryDirection = (typeof INVENTORY_DIRECTIONS)[number];
+export type { AnnouncementAudience };
 
 export type Profile = Omit<Tables<"profiles">, "crew_rank"> & { crew_rank: Rank };
 
@@ -27,6 +35,18 @@ export type RemitLogWithType = RemitLog & {
 export type MemberRep = Tables<"member_rep">;
 
 export type InventoryItem = Tables<"inventory_items">;
+
+export type SiteAnnouncement = Omit<Tables<"site_announcements">, "audience"> & {
+  audience: AnnouncementAudience;
+};
+
+export type PendingAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  created_at: string;
+};
 
 export type InventoryWarehouse = {
   id: number;

@@ -1,7 +1,17 @@
+import { SiteUpdateDialog } from "@/components/announcements/site-update-dialog";
 import { SideNav } from "@/components/nav/side-nav";
 import { SiteHeader } from "@/components/nav/site-header";
 import { getMyWarehouseAccess, requireSession } from "@/lib/auth";
+import { ANNOUNCEMENT_AUDIENCES } from "@/lib/constants";
 import { visibleNavItems } from "@/lib/nav";
+import { createClient } from "@/lib/supabase/server";
+import type { PendingAnnouncement } from "@/lib/types/app";
+
+function isAudience(
+  value: string,
+): value is PendingAnnouncement["audience"] {
+  return (ANNOUNCEMENT_AUDIENCES as readonly string[]).includes(value);
+}
 
 export default async function PortalLayout({
   children,
@@ -11,6 +21,21 @@ export default async function PortalLayout({
   const { profile } = await requireSession();
   const warehouses = await getMyWarehouseAccess();
   const items = visibleNavItems(profile, warehouses);
+
+  const supabase = await createClient();
+  const { data: pendingRows } = await supabase.rpc("vanta_pending_announcements");
+  const pending: PendingAnnouncement[] = [];
+  for (const row of pendingRows ?? []) {
+    if (!isAudience(row.audience)) continue;
+    pending.push({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      audience: row.audience,
+      created_at: row.created_at,
+    });
+  }
+  const announcement = pending[0] ?? null;
 
   return (
     <div className="min-h-dvh lg:pl-60">
@@ -27,6 +52,11 @@ export default async function PortalLayout({
           </div>
         </footer>
       </div>
+
+      <SiteUpdateDialog
+        key={announcement?.id ?? "none"}
+        announcement={announcement}
+      />
     </div>
   );
 }

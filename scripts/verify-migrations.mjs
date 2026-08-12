@@ -1314,6 +1314,89 @@ async function main() {
     assert(movement.rows[0].direction === "inbound", "should be inbound");
   });
 
+  console.log("\nsite announcements");
+
+  let announcementId;
+  await check("an Underboss can post a site update", async () => {
+    const { rows } = await as(
+      underbossId,
+      `insert into public.site_announcements (title, body, audience, created_by)
+       values ('Warehouse access', 'Ask an admin to assign your warehouse.', 'everyone', $1)
+       returning id;`,
+      [underbossId],
+    );
+    assert(rows.length === 1, "announcement was not created");
+    announcementId = rows[0].id;
+  });
+
+  await denied(
+    "a Captain cannot post site updates",
+    () =>
+      as(
+        captainId,
+        `insert into public.site_announcements (title, body, audience, created_by)
+         values ('Nope', 'Nope', 'everyone', $1);`,
+        [captainId],
+      ),
+    "row-level security",
+  );
+
+  await check("pending announcements hide after dismiss", async () => {
+    const before = await as(prospectId, "select id from public.vanta_pending_announcements();");
+    assert(
+      before.rows.some((r) => r.id === announcementId),
+      "Prospect should see the active everyone announcement",
+    );
+
+    await as(
+      prospectId,
+      `insert into public.site_announcement_dismissals (announcement_id, member_id)
+       values ($1, $2);`,
+      [announcementId, prospectId],
+    );
+
+    const after = await as(prospectId, "select id from public.vanta_pending_announcements();");
+    assert(
+      !after.rows.some((r) => r.id === announcementId),
+      "dismissed announcement still pending for Prospect",
+    );
+
+    const other = await as(operatorId, "select id from public.vanta_pending_announcements();");
+    assert(
+      other.rows.some((r) => r.id === announcementId),
+      "Operator should still see the undismissed announcement",
+    );
+  });
+
+  await check("staff-only announcements are hidden from Prospects", async () => {
+    const { rows } = await as(
+      underbossId,
+      `insert into public.site_announcements (title, body, audience, created_by)
+       values ('Staff note', 'Enforcer+ only.', 'staff', $1)
+       returning id;`,
+      [underbossId],
+    );
+    const staffNoteId = rows[0].id;
+
+    const prospectPending = await as(
+      prospectId,
+      "select id from public.vanta_pending_announcements();",
+    );
+    assert(
+      !prospectPending.rows.some((r) => r.id === staffNoteId),
+      "Prospect saw a staff-only announcement",
+    );
+
+    const captainPending = await as(
+      captainId,
+      "select id from public.vanta_pending_announcements();",
+    );
+    assert(
+      captainPending.rows.some((r) => r.id === staffNoteId),
+      "Captain should see staff announcements",
+    );
+  });
+
   console.log("\nremit tracker / advance");
 
   function asDate(value) {

@@ -26,6 +26,11 @@ export const AUDIT_SELECT = `
   actor:profiles!audit_log_actor_id_fkey(${PERSON})
 `;
 
+export const SITE_ANNOUNCEMENT_SELECT = `
+  id, title, body, audience, is_active, created_by, created_at,
+  creator:profiles!site_announcements_created_by_fkey(${PERSON})
+`;
+
 export const MEMBER_SUMMARY_SELECT = `
   id, discord_username, discord_avatar_url, ingame_name, crew_rank,
   is_active, hacking_practice_access, created_at, rep_band, tier_label,
