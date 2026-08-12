@@ -954,26 +954,59 @@ async function main() {
     assert(rows.length === 0, "Prospect saw inventory stock");
   });
 
-  await check("staff can read inventory stock", async () => {
+  await check("Captain without warehouse assignment cannot log inventory", async () => {
     // Reactivate captain for the rest of inventory checks.
     await as(kingpinId, "update public.profiles set is_active = true where id = $1;", [captainId]);
-    const { rows } = await as(captainId, "select item_id, on_hand from public.inventory_stock;");
-    assert(rows.length >= 1, "Captain saw no inventory stock rows");
+
+    const total = await as(captainId, "select item_id from public.inventory_stock;");
+    assert(total.rows.length === 0, "unassigned Captain saw Total stock");
+
+    let blocked = false;
+    try {
+      await as(
+        captainId,
+        `insert into public.inventory_movements (item_id, direction, quantity, created_by)
+         values ($1, 'inbound', 1, $2);`,
+        [inventoryItemId, captainId],
+      );
+    } catch (error) {
+      blocked = String(error.message).toLowerCase().includes("row-level security");
+    }
+    assert(blocked, "unassigned Captain was allowed to log inventory");
   });
 
-  await check("a Captain can log inbound stock", async () => {
+  await check("admins can assign warehouse access", async () => {
+    await as(
+      underbossId,
+      `insert into public.inventory_warehouse_access (member_id, warehouse)
+       values ($1, 1), ($1, 2);`,
+      [captainId],
+    );
+    const { rows } = await as(
+      captainId,
+      "select warehouse from public.inventory_warehouse_access where member_id = $1 order by warehouse;",
+      [captainId],
+    );
+    assert(rows.length === 2, "Captain should see their own warehouse assignments");
+    assert(Number(rows[0].warehouse) === 1 && Number(rows[1].warehouse) === 2, "wrong warehouses");
+  });
+
+  await check("assigned Captain can log inbound at Warehouse 1", async () => {
     await as(
       captainId,
-      `insert into public.inventory_movements (item_id, direction, quantity, note, created_by)
-       values ($1, 'inbound', 10, 'stash drop', $2);`,
+      `insert into public.inventory_movements (item_id, direction, quantity, note, warehouse, created_by)
+       values ($1, 'inbound', 10, 'stash drop', 1, $2);`,
       [inventoryItemId, captainId],
     );
     const { rows } = await as(
       captainId,
-      "select on_hand from public.inventory_stock where item_id = $1;",
+      "select on_hand from public.inventory_warehouse_stock where item_id = $1 and warehouse = 1;",
       [inventoryItemId],
     );
-    assert(Number(rows[0].on_hand) === 10, `expected on hand 10, got ${rows[0].on_hand}`);
+    assert(Number(rows[0].on_hand) === 10, `expected on hand 10, got ${rows[0]?.on_hand}`);
+
+    const total = await as(captainId, "select item_id from public.inventory_stock;");
+    assert(total.rows.length === 0, "assigned Captain should not see Total stock");
   });
 
   await check("outbound cannot exceed on-hand stock", async () => {
@@ -981,8 +1014,8 @@ async function main() {
     try {
       await as(
         captainId,
-        `insert into public.inventory_movements (item_id, direction, quantity, created_by)
-         values ($1, 'outbound', 11, $2);`,
+        `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+         values ($1, 'outbound', 11, 1, $2);`,
         [inventoryItemId, captainId],
       );
     } catch (error) {
@@ -994,18 +1027,160 @@ async function main() {
   await check("a Captain can log outbound within stock", async () => {
     await as(
       captainId,
-      `insert into public.inventory_movements (item_id, direction, quantity, member_id, created_by)
-       values ($1, 'outbound', 3, $2, $3);`,
+      `insert into public.inventory_movements (item_id, direction, quantity, member_id, warehouse, created_by)
+       values ($1, 'outbound', 3, $2, 1, $3);`,
       [inventoryItemId, operatorId, captainId],
     );
-    const { rows } = await as(
+    const wh = await as(
       captainId,
-      "select on_hand, inbound_total, outbound_total from public.inventory_stock where item_id = $1;",
+      "select on_hand, inbound_total, outbound_total from public.inventory_warehouse_stock where item_id = $1 and warehouse = 1;",
       [inventoryItemId],
     );
-    assert(Number(rows[0].on_hand) === 7, `expected on hand 7, got ${rows[0].on_hand}`);
-    assert(Number(rows[0].inbound_total) === 10, "inbound total wrong");
-    assert(Number(rows[0].outbound_total) === 3, "outbound total wrong");
+    assert(Number(wh.rows[0].on_hand) === 7, `expected on hand 7, got ${wh.rows[0].on_hand}`);
+    assert(Number(wh.rows[0].inbound_total) === 10, "inbound total wrong");
+    assert(Number(wh.rows[0].outbound_total) === 3, "outbound total wrong");
+
+    const total = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [inventoryItemId],
+    );
+    assert(Number(total.rows[0].on_hand) === 7, `admin total expected 7, got ${total.rows[0].on_hand}`);
+
+    const byWh = await as(
+      underbossId,
+      `select warehouse, on_hand from public.inventory_warehouse_stock
+       where item_id = $1 and warehouse in (1, 2, 3) order by warehouse;`,
+      [inventoryItemId],
+    );
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 1)?.on_hand) === 7, "W1 should be 7");
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 2)?.on_hand) === 0, "W2 should be empty");
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 3)?.on_hand) === 0, "W3 should be empty");
+  });
+
+  await check("warehouses keep separate stock balances", async () => {
+    await as(
+      captainId,
+      `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+       values ($1, 'inbound', 5, 2, $2);`,
+      [inventoryItemId, captainId],
+    );
+
+    let blocked = false;
+    try {
+      await as(
+        captainId,
+        `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+         values ($1, 'outbound', 1, 3, $2);`,
+        [inventoryItemId, captainId],
+      );
+    } catch (error) {
+      const msg = String(error.message);
+      blocked =
+        msg.includes("Not enough stock in Warehouse 3") ||
+        msg.toLowerCase().includes("row-level security");
+    }
+    assert(blocked, "warehouse 3 log was allowed without access/stock");
+
+    await as(
+      captainId,
+      `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+       values ($1, 'outbound', 2, 2, $2);`,
+      [inventoryItemId, captainId],
+    );
+
+    const total = await as(
+      underbossId,
+      "select on_hand from public.inventory_stock where item_id = $1;",
+      [inventoryItemId],
+    );
+    assert(Number(total.rows[0].on_hand) === 10, `expected total 10, got ${total.rows[0].on_hand}`);
+
+    const byWh = await as(
+      underbossId,
+      `select warehouse, on_hand from public.inventory_warehouse_stock
+       where item_id = $1 and warehouse in (1, 2, 3) order by warehouse;`,
+      [inventoryItemId],
+    );
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 1)?.on_hand) === 7, "W1 should stay 7");
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 2)?.on_hand) === 3, "W2 should be 3");
+    assert(Number(byWh.rows.find((r) => Number(r.warehouse) === 3)?.on_hand) === 0, "W3 should stay 0");
+
+    const w2 = await as(
+      captainId,
+      "select on_hand from public.inventory_warehouse_stock where item_id = $1 and warehouse = 2;",
+      [inventoryItemId],
+    );
+    assert(Number(w2.rows[0].on_hand) === 3, "warehouse stock view wrong for W2");
+  });
+
+  await check("an Underboss can add a new warehouse", async () => {
+    const { rows } = await as(
+      underbossId,
+      `insert into public.inventory_warehouses (name, sort_order)
+       values ('Warehouse 4', 4) returning id, name;`,
+    );
+    assert(rows.length === 1, "warehouse was not created");
+    assert(rows[0].name === "Warehouse 4", "wrong warehouse name");
+
+    await as(
+      underbossId,
+      `insert into public.inventory_warehouse_access (member_id, warehouse)
+       values ($1, $2);`,
+      [captainId, rows[0].id],
+    );
+
+    await as(
+      captainId,
+      `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+       values ($1, 'inbound', 1, $2, $3);`,
+      [inventoryItemId, rows[0].id, captainId],
+    );
+
+    const stock = await as(
+      captainId,
+      "select on_hand from public.inventory_warehouse_stock where item_id = $1 and warehouse = $2;",
+      [inventoryItemId, rows[0].id],
+    );
+    assert(Number(stock.rows[0].on_hand) === 1, "new warehouse stock wrong");
+  });
+
+  await check("Prospect assigned to Warehouse 2 can log only there", async () => {
+    await as(
+      underbossId,
+      `insert into public.inventory_warehouse_access (member_id, warehouse) values ($1, 2);`,
+      [prospectId],
+    );
+
+    await as(
+      prospectId,
+      `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+       values ($1, 'inbound', 2, 2, $2);`,
+      [inventoryItemId, prospectId],
+    );
+
+    let blocked = false;
+    try {
+      await as(
+        prospectId,
+        `insert into public.inventory_movements (item_id, direction, quantity, warehouse, created_by)
+         values ($1, 'inbound', 1, 1, $2);`,
+        [inventoryItemId, prospectId],
+      );
+    } catch (error) {
+      blocked = String(error.message).toLowerCase().includes("row-level security");
+    }
+    assert(blocked, "Prospect logged into Warehouse 1 without access");
+
+    const visible = await as(
+      prospectId,
+      "select warehouse from public.inventory_warehouse_stock where item_id = $1 order by warehouse;",
+      [inventoryItemId],
+    );
+    assert(
+      visible.rows.length === 1 && Number(visible.rows[0].warehouse) === 2,
+      "Prospect should only see Warehouse 2 stock",
+    );
   });
 
   await check("inventory inbound and outbound are audited", async () => {
@@ -1071,12 +1246,13 @@ async function main() {
     );
 
     const movement = await asSystem(
-      "select direction, quantity, remit_log_id from public.inventory_movements where remit_log_id = $1;",
+      "select direction, quantity, remit_log_id, warehouse from public.inventory_movements where remit_log_id = $1;",
       [remitIdLinked],
     );
     assert(movement.rows.length === 1, "approved remit did not create an inventory movement");
     assert(movement.rows[0].direction === "inbound", "movement should be inbound");
     assert(Number(movement.rows[0].quantity) === 4, "movement quantity wrong");
+    assert(Number(movement.rows[0].warehouse) === 1, "remit stock should land in warehouse 1");
 
     // Rejecting pulls the stock back out.
     await as(underbossId, "update public.remit_logs set status = 'rejected' where id = $1;", [

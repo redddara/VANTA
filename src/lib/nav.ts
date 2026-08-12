@@ -1,5 +1,5 @@
-import { canAccessHackingPractice } from "@/lib/features";
-import { rankWeight, type Profile, type Rank } from "@/lib/types/app";
+import { canAccessHackingPractice, canAccessInventory } from "@/lib/features";
+import { rankWeight, type InventoryWarehouse, type Profile, type Rank } from "@/lib/types/app";
 
 export type NavItem = {
   href: string;
@@ -16,7 +16,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/hacking", label: "Hacking Practice", minRank: "Operator", group: "main" },
   { href: "/remit/mine", label: "Log Remit", minRank: "Prospect", group: "actions" },
   { href: "/remit/tracker", label: "Remit Tracker", minRank: "Enforcer", group: "actions" },
-  { href: "/inventory", label: "Inventory", minRank: "Enforcer", group: "actions" },
+  // Visibility is assignment/admin gated in visibleNavItems (not rank alone).
+  { href: "/inventory", label: "Inventory", minRank: "Prospect", group: "actions" },
   { href: "/reputation/new", label: "Set Reputation", minRank: "Enforcer", group: "actions" },
   { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
   { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
@@ -32,10 +33,14 @@ export const NAV_GROUP_LABELS: Record<NavItem["group"], string> = {
 
 export function visibleNavItems(
   profile: Pick<Profile, "crew_rank" | "hacking_practice_access">,
+  warehouses: readonly InventoryWarehouse[] = [],
 ): NavItem[] {
   const weight = rankWeight(profile.crew_rank);
   return NAV_ITEMS.filter((item) => {
     if (item.href === "/hacking") return canAccessHackingPractice(profile);
+    if (item.href === "/inventory") {
+      return canAccessInventory(profile, warehouses);
+    }
     return weight >= rankWeight(item.minRank);
   });
 }

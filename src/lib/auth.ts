@@ -4,12 +4,15 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
+import { canAccessInventory } from "@/lib/features";
+import { INVENTORY_WAREHOUSE_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import {
   canViewRoster,
   isAdmin,
   isRank,
   isStaff,
+  type InventoryWarehouse,
   type Profile,
 } from "@/lib/types/app";
 
@@ -105,3 +108,55 @@ export async function requireRoster(): Promise<Session> {
   return session;
 }
 
+/**
+ * Warehouses the signed-in member may open. Admins get every catalog row;
+ * others get only assigned warehouses (active preferred in nav).
+ */
+export const getMyWarehouseAccess = cache(
+  async (): Promise<InventoryWarehouse[]> => {
+    const session = await getSession();
+    if (!session) return [];
+
+    const supabase = await createClient();
+
+    if (isAdmin(session.profile.crew_rank)) {
+      const { data } = await supabase
+        .from("inventory_warehouses")
+        .select(INVENTORY_WAREHOUSE_SELECT)
+        .order("sort_order")
+        .order("id")
+        .returns<InventoryWarehouse[]>();
+      return data ?? [];
+    }
+
+    const { data: access } = await supabase
+      .from("inventory_warehouse_access")
+      .select("warehouse")
+      .eq("member_id", session.profile.id);
+
+    const ids = (access ?? []).map((row) => row.warehouse);
+    if (ids.length === 0) return [];
+
+    const { data } = await supabase
+      .from("inventory_warehouses")
+      .select(INVENTORY_WAREHOUSE_SELECT)
+      .in("id", ids)
+      .order("sort_order")
+      .order("id")
+      .returns<InventoryWarehouse[]>();
+
+    return data ?? [];
+  },
+);
+
+/** Admin, or any member with at least one warehouse assignment. */
+export async function requireInventoryAccess(): Promise<
+  Session & { warehouses: InventoryWarehouse[] }
+> {
+  const session = await requireSession();
+  const warehouses = await getMyWarehouseAccess();
+  if (!canAccessInventory(session.profile, warehouses)) {
+    redirect("/dashboard");
+  }
+  return { ...session, warehouses };
+}

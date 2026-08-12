@@ -1,6 +1,6 @@
 import { SideNav } from "@/components/nav/side-nav";
 import { SiteHeader } from "@/components/nav/site-header";
-import { requireSession } from "@/lib/auth";
+import { getMyWarehouseAccess, requireSession } from "@/lib/auth";
 import { visibleNavItems } from "@/lib/nav";
 
 export default async function PortalLayout({
@@ -9,7 +9,8 @@ export default async function PortalLayout({
   children: React.ReactNode;
 }) {
   const { profile } = await requireSession();
-  const items = visibleNavItems(profile);
+  const warehouses = await getMyWarehouseAccess();
+  const items = visibleNavItems(profile, warehouses);
 
   return (
     <div className="min-h-dvh lg:pl-60">

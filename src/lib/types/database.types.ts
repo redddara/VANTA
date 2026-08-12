@@ -98,6 +98,7 @@ export type Database = {
           note: string | null
           quantity: number
           remit_log_id: string | null
+          warehouse: number
         }
         Insert: {
           created_at?: string
@@ -109,6 +110,7 @@ export type Database = {
           note?: string | null
           quantity: number
           remit_log_id?: string | null
+          warehouse?: number
         }
         Update: {
           created_at?: string
@@ -120,6 +122,7 @@ export type Database = {
           note?: string | null
           quantity?: number
           remit_log_id?: string | null
+          warehouse?: number
         }
         Relationships: [
           {
@@ -158,6 +161,13 @@ export type Database = {
             referencedColumns: ["item_id"]
           },
           {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouse_stock"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "inventory_movements_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
@@ -185,7 +195,99 @@ export type Database = {
             referencedRelation: "remit_logs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventory_movements_warehouse_fkey"
+            columns: ["warehouse"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouse_stock"
+            referencedColumns: ["warehouse"]
+          },
+          {
+            foreignKeyName: "inventory_movements_warehouse_fkey"
+            columns: ["warehouse"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouses"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      inventory_warehouse_access: {
+        Row: {
+          created_at: string
+          member_id: string
+          warehouse: number
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+          warehouse: number
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          warehouse?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_warehouse_access_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_warehouse_access_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "inventory_warehouse_access_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_warehouse_access_warehouse_fkey"
+            columns: ["warehouse"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouse_stock"
+            referencedColumns: ["warehouse"]
+          },
+          {
+            foreignKeyName: "inventory_warehouse_access_warehouse_fkey"
+            columns: ["warehouse"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_warehouses: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       member_rep: {
         Row: {
@@ -480,6 +582,13 @@ export type Database = {
             referencedRelation: "inventory_stock"
             referencedColumns: ["item_id"]
           },
+          {
+            foreignKeyName: "remit_types_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_warehouse_stock"
+            referencedColumns: ["item_id"]
+          },
         ]
       }
       reputation_entries_legacy: {
@@ -676,6 +785,22 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_warehouse_stock: {
+        Row: {
+          created_at: string | null
+          inbound_total: number | null
+          is_active: boolean | null
+          item_id: string | null
+          item_name: string | null
+          on_hand: number | null
+          outbound_total: number | null
+          sort_order: number | null
+          warehouse: number | null
+          warehouse_active: boolean | null
+          warehouse_name: string | null
+        }
+        Relationships: []
+      }
       member_summary: {
         Row: {
           atm_payout: string | null
@@ -729,9 +854,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      vanta_can_access_inventory: { Args: never; Returns: boolean }
       vanta_can_view_roster: { Args: never; Returns: boolean }
       vanta_current_rank: { Args: never; Returns: string }
       vanta_current_week_start: { Args: never; Returns: string }
+      vanta_default_inventory_warehouse: { Args: never; Returns: number }
       vanta_ensure_profile: {
         Args: never
         Returns: {
@@ -751,6 +878,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      vanta_has_warehouse_access: {
+        Args: { p_warehouse: number }
+        Returns: boolean
+      }
       vanta_inventory_balances: {
         Args: never
         Returns: {
@@ -758,6 +889,16 @@ export type Database = {
           item_id: string
           on_hand: number
           outbound_total: number
+        }[]
+      }
+      vanta_inventory_warehouse_balances: {
+        Args: never
+        Returns: {
+          inbound_total: number
+          item_id: string
+          on_hand: number
+          outbound_total: number
+          warehouse: number
         }[]
       }
       vanta_is_admin: { Args: never; Returns: boolean }

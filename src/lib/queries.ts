@@ -40,6 +40,14 @@ export const WEEKLY_COMPLIANCE_SELECT = `
   approved_quantity, quota_met
 `;
 
+export const INVENTORY_WAREHOUSE_ACCESS_SELECT = `
+  member_id, warehouse, created_at
+`;
+
+export const INVENTORY_WAREHOUSE_SELECT = `
+  id, name, sort_order, is_active, created_at
+`;
+
 export const INVENTORY_ITEM_SELECT = `
   id, name, is_active, created_at
 `;
@@ -49,9 +57,15 @@ export const INVENTORY_STOCK_SELECT = `
   inbound_total, outbound_total, on_hand
 `;
 
+export const INVENTORY_WAREHOUSE_STOCK_SELECT = `
+  warehouse, warehouse_name, sort_order, warehouse_active,
+  item_id, item_name, is_active, created_at,
+  inbound_total, outbound_total, on_hand
+`;
+
 export const INVENTORY_MOVEMENT_SELECT = `
   id, item_id, direction, quantity, note, member_id, created_by, created_at,
-  remit_log_id,
+  remit_log_id, warehouse,
   item:inventory_items!inventory_movements_item_id_fkey(id, name, is_active),
   member:profiles!inventory_movements_member_id_fkey(${PERSON}),
   logger:profiles!inventory_movements_created_by_fkey(${PERSON})

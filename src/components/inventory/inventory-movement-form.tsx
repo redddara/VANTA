@@ -33,7 +33,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { logInventoryMovement } from "@/lib/actions/inventory";
 import { INVENTORY_DIRECTION_LABELS } from "@/lib/constants";
-import type { InventoryItem, InventoryStock } from "@/lib/types/app";
+import type {
+  InventoryItem,
+  InventoryWarehouse,
+  InventoryWarehouseStock,
+} from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 const Schema = z.object({
@@ -53,11 +57,14 @@ export function InventoryMovementForm({
   items,
   stock,
   members,
+  warehouse,
 }: {
   items: InventoryItem[];
-  stock: InventoryStock[];
+  stock: InventoryWarehouseStock[];
   members: SelectableMember[];
+  warehouse: InventoryWarehouse;
 }) {
+  const warehouseId = warehouse.id;
   const router = useRouter();
   const qtyRef = useRef<HTMLInputElement | null>(null);
   const activeItems = items.filter((i) => i.is_active);
@@ -85,6 +92,7 @@ export function InventoryMovementForm({
       itemId: values.itemId,
       direction: values.direction,
       quantity: values.quantity,
+      warehouse: warehouseId,
       note: values.note,
       memberId: values.memberId,
     });
@@ -148,6 +156,9 @@ export function InventoryMovementForm({
                   );
                 })}
               </div>
+              <FormDescription>
+                Logging to {warehouse.name}.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -175,7 +186,7 @@ export function InventoryMovementForm({
               </Select>
               {onHand != null ? (
                 <FormDescription className="tabular">
-                  On hand: {onHand}
+                  On hand here: {onHand}
                 </FormDescription>
               ) : null}
               <FormMessage />

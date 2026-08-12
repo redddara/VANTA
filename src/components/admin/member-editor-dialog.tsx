@@ -27,12 +27,26 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { updateMember } from "@/lib/actions/members";
 import { displayName } from "@/lib/display";
-import { RANKS, RANK_DESCRIPTIONS } from "@/lib/constants";
-import { isAdmin, isRank, type MemberSummary, type Rank } from "@/lib/types/app";
+import { RANK_DESCRIPTIONS, RANKS } from "@/lib/constants";
+import {
+  isAdmin,
+  isRank,
+  type InventoryWarehouse,
+  type MemberSummary,
+  type Rank,
+} from "@/lib/types/app";
+import { cn } from "@/lib/utils";
 
 /** Falls back to the lowest rank if the stored value is not on the ladder. */
 function normaliseRank(rank: string | null): Rank {
   return isRank(rank) ? rank : RANKS[0];
+}
+
+function sameIds(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  const left = [...a].sort((x, y) => x - y);
+  const right = [...b].sort((x, y) => x - y);
+  return left.every((w, i) => w === right[i]);
 }
 
 function EditorBody({
@@ -40,12 +54,16 @@ function EditorBody({
   isSelf,
   canRename,
   canGrantHacking,
+  catalog,
+  assignedIds,
   onDone,
 }: {
   member: MemberSummary;
   isSelf: boolean;
   canRename: boolean;
   canGrantHacking: boolean;
+  catalog: InventoryWarehouse[];
+  assignedIds: number[];
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -57,6 +75,9 @@ function EditorBody({
   const [hackingAccess, setHackingAccess] = useState(
     Boolean(member.hacking_practice_access),
   );
+  const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>(() =>
+    [...assignedIds].sort((a, b) => a - b),
+  );
 
   const name = displayName(member);
   const nameDirty =
@@ -64,11 +85,25 @@ function EditorBody({
   const hackingDirty =
     canGrantHacking &&
     hackingAccess !== Boolean(member.hacking_practice_access);
+  const warehousesDirty = !sameIds(selectedWarehouses, assignedIds);
   const dirty =
     rank !== member.crew_rank ||
     isActive !== member.is_active ||
     nameDirty ||
-    hackingDirty;
+    hackingDirty ||
+    warehousesDirty;
+
+  const assignable = catalog.filter(
+    (w) => w.is_active || selectedWarehouses.includes(w.id),
+  );
+
+  function toggleWarehouse(warehouseId: number) {
+    setSelectedWarehouses((current) =>
+      current.includes(warehouseId)
+        ? current.filter((w) => w !== warehouseId)
+        : [...current, warehouseId].sort((a, b) => a - b),
+    );
+  }
 
   function save() {
     startTransition(async () => {
@@ -76,6 +111,7 @@ function EditorBody({
         id: member.id,
         rank,
         isActive,
+        warehouses: selectedWarehouses,
         ...(canRename ? { ingameName: ingameName.trim() } : {}),
         ...(canGrantHacking ? { hackingPracticeAccess: hackingAccess } : {}),
       });
@@ -188,6 +224,41 @@ function EditorBody({
           </div>
         ) : null}
 
+        <div className="grid gap-2 rounded-lg border p-3">
+          <Label>Warehouse access</Label>
+          <p className="text-muted-foreground text-xs">
+            Assigned members can open Inventory and log stock only at these
+            warehouses. Underboss and Kingpin always see every warehouse.
+          </p>
+          {assignable.length === 0 ? (
+            <p className="text-muted-foreground mt-1 text-xs">
+              No warehouses yet. Add one on the Inventory page first.
+            </p>
+          ) : (
+            <div className="mt-1 flex flex-wrap gap-2">
+              {assignable.map((warehouse) => {
+                const selected = selectedWarehouses.includes(warehouse.id);
+                return (
+                  <button
+                    key={warehouse.id}
+                    type="button"
+                    onClick={() => toggleWarehouse(warehouse.id)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                      selected
+                        ? "border-primary/40 bg-primary/12 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {warehouse.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {isSelf && !isAdmin(rank) && (
           <p className="text-warning border-warning/30 bg-warning/10 rounded-md border p-3 text-xs">
             This is your own account. Dropping below Underboss will lock you out
@@ -216,6 +287,8 @@ export function MemberEditorDialog({
   isSelf,
   canRename,
   canGrantHacking,
+  warehouseCatalog,
+  warehousesByMember,
 }: {
   member: MemberSummary | null;
   open: boolean;
@@ -223,6 +296,8 @@ export function MemberEditorDialog({
   isSelf: boolean;
   canRename: boolean;
   canGrantHacking: boolean;
+  warehouseCatalog: InventoryWarehouse[];
+  warehousesByMember: Record<string, number[]>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,6 +310,8 @@ export function MemberEditorDialog({
             isSelf={isSelf}
             canRename={canRename}
             canGrantHacking={canGrantHacking}
+            catalog={warehouseCatalog}
+            assignedIds={warehousesByMember[member.id] ?? []}
             onDone={() => onOpenChange(false)}
           />
         )}

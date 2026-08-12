@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { displayName } from "@/lib/display";
 import { formatMoney } from "@/lib/format";
-import type { MemberSummary } from "@/lib/types/app";
+import type { InventoryWarehouse, MemberSummary } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
 type Filter = "active" | "inactive" | "all";
@@ -37,11 +37,15 @@ export function MembersTable({
   currentUserId,
   canRename,
   canGrantHacking,
+  warehouseCatalog,
+  warehousesByMember,
 }: {
   members: MemberSummary[];
   currentUserId: string;
   canRename: boolean;
   canGrantHacking: boolean;
+  warehouseCatalog: InventoryWarehouse[];
+  warehousesByMember: Record<string, number[]>;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("active");
@@ -207,6 +211,8 @@ export function MembersTable({
         isSelf={editing?.id === currentUserId}
         canRename={canRename}
         canGrantHacking={canGrantHacking}
+        warehouseCatalog={warehouseCatalog}
+        warehousesByMember={warehousesByMember}
       />
     </>
   );

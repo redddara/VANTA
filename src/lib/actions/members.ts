@@ -23,6 +23,7 @@ const UpdateMemberSchema = z.object({
   isActive: z.boolean(),
   ingameName: IngameNameSchema.optional(),
   hackingPracticeAccess: z.boolean().optional(),
+  warehouses: z.array(z.number().int().positive()).optional(),
 });
 
 const UpdateOwnProfileSchema = z.object({
@@ -37,6 +38,7 @@ function revalidateMembers() {
   revalidatePath("/reputation/new");
   revalidatePath("/remit/tracker");
   revalidatePath("/hacking");
+  revalidatePath("/inventory");
 }
 
 /**
@@ -53,6 +55,7 @@ export async function updateMember(input: {
   isActive: boolean;
   ingameName?: string;
   hackingPracticeAccess?: boolean;
+  warehouses?: number[];
 }): Promise<ActionResult> {
   const parsed = UpdateMemberSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -96,6 +99,30 @@ export async function updateMember(input: {
 
   if (error) return { ok: false, error: toActionError(error) };
   if (!count) return { ok: false, error: "Only an admin can manage members." };
+
+  if (parsed.data.warehouses !== undefined) {
+    const unique = [...new Set(parsed.data.warehouses)];
+
+    const { error: clearError } = await supabase
+      .from("inventory_warehouse_access")
+      .delete()
+      .eq("member_id", parsed.data.id);
+
+    if (clearError) return { ok: false, error: toActionError(clearError) };
+
+    if (unique.length > 0) {
+      const { error: insertError } = await supabase
+        .from("inventory_warehouse_access")
+        .insert(
+          unique.map((warehouse) => ({
+            member_id: parsed.data.id,
+            warehouse,
+          })),
+        );
+
+      if (insertError) return { ok: false, error: toActionError(insertError) };
+    }
+  }
 
   revalidateMembers();
   return { ok: true, message: "Member updated." };

@@ -28,7 +28,29 @@ export type MemberRep = Tables<"member_rep">;
 
 export type InventoryItem = Tables<"inventory_items">;
 
+export type InventoryWarehouse = {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
 export type InventoryStock = {
+  item_id: string;
+  item_name: string;
+  is_active: boolean;
+  created_at: string;
+  inbound_total: number;
+  outbound_total: number;
+  on_hand: number;
+};
+
+export type InventoryWarehouseStock = {
+  warehouse: number;
+  warehouse_name: string;
+  sort_order: number;
+  warehouse_active: boolean;
   item_id: string;
   item_name: string;
   is_active: boolean;

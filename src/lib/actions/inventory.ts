@@ -19,10 +19,24 @@ const ItemSchema = z.object({
   isActive: z.boolean(),
 });
 
+const WarehouseSchema = z.object({
+  name: z.string().trim().min(1, "Give the warehouse a name.").max(80),
+  isActive: z.boolean(),
+  sortOrder: z
+    .number({ error: "Enter a sort order." })
+    .int("Sort order must be a whole number.")
+    .min(0)
+    .max(10_000),
+});
+
 const MovementSchema = z.object({
   itemId: uuid,
   direction: z.enum(["inbound", "outbound"]),
   quantity,
+  warehouse: z
+    .number({ error: "Pick a warehouse." })
+    .int()
+    .positive("Pick a warehouse."),
   note: z
     .string()
     .trim()
@@ -33,6 +47,7 @@ const MovementSchema = z.object({
 
 function revalidateInventory() {
   revalidatePath("/inventory");
+  revalidatePath("/admin/members");
   revalidatePath("/admin/audit");
 }
 
@@ -120,10 +135,106 @@ export async function deleteInventoryItem(id: string): Promise<ActionResult> {
   return { ok: true, message: "Item deleted." };
 }
 
+export async function createInventoryWarehouse(input: {
+  name: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}): Promise<ActionResult> {
+  const parsed = WarehouseSchema.safeParse({
+    name: input.name,
+    isActive: input.isActive ?? true,
+    sortOrder: input.sortOrder ?? 0,
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("inventory_warehouses").insert({
+    name: parsed.data.name,
+    is_active: parsed.data.isActive,
+    sort_order: parsed.data.sortOrder,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "That warehouse name is already taken." };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+
+  revalidateInventory();
+  return { ok: true, message: `Added ${parsed.data.name}.` };
+}
+
+export async function updateInventoryWarehouse(input: {
+  id: number;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+}): Promise<ActionResult> {
+  const parsed = WarehouseSchema.extend({
+    id: z.number().int().positive(),
+  }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("inventory_warehouses")
+    .update(
+      {
+        name: parsed.data.name,
+        is_active: parsed.data.isActive,
+        sort_order: parsed.data.sortOrder,
+      },
+      { count: "exact" },
+    )
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "That warehouse name is already taken." };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+  if (!count) {
+    return { ok: false, error: "Only an admin can edit warehouses." };
+  }
+
+  revalidateInventory();
+  return { ok: true, message: `Updated ${parsed.data.name}.` };
+}
+
+export async function deleteInventoryWarehouse(id: number): Promise<ActionResult> {
+  const parsed = z.number().int().positive().safeParse(id);
+  if (!parsed.success) return { ok: false, error: "Unknown warehouse." };
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("inventory_warehouses")
+    .delete({ count: "exact" })
+    .eq("id", parsed.data);
+
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        ok: false,
+        error: "This warehouse has movements. Retire it instead of deleting.",
+      };
+    }
+    return { ok: false, error: toActionError(error) };
+  }
+  if (!count) {
+    return { ok: false, error: "Only an admin can delete warehouses." };
+  }
+
+  revalidateInventory();
+  return { ok: true, message: "Warehouse deleted." };
+}
+
 export async function logInventoryMovement(input: {
   itemId: string;
   direction: "inbound" | "outbound";
   quantity: number;
+  warehouse: number;
   note?: string;
   memberId?: string | null;
 }): Promise<ActionResult> {
@@ -138,6 +249,7 @@ export async function logInventoryMovement(input: {
     item_id: parsed.data.itemId,
     direction: parsed.data.direction,
     quantity: parsed.data.quantity,
+    warehouse: parsed.data.warehouse,
     note: parsed.data.note || null,
     member_id: parsed.data.memberId || null,
     created_by: userData.user.id,

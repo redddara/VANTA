@@ -14,12 +14,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { InventoryStock } from "@/lib/types/app";
+import type {
+  InventoryStock,
+  InventoryWarehouse,
+  InventoryWarehouseStock,
+} from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
-export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
+type TotalProps = {
+  mode: "total";
+  rows: InventoryStock[];
+  warehouses: InventoryWarehouse[];
+  warehouseStock: InventoryWarehouseStock[];
+};
+
+type WarehouseProps = {
+  mode: "warehouse";
+  rows: InventoryWarehouseStock[];
+};
+
+export function InventoryStockTable(props: TotalProps | WarehouseProps) {
   const [query, setQuery] = useState("");
   const [showRetired, setShowRetired] = useState(false);
+  const rows = props.rows;
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -36,6 +53,15 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
         return a.item_name.localeCompare(b.item_name);
       });
   }, [rows, query, showRetired]);
+
+  const onHandByItemWarehouse = useMemo(() => {
+    if (props.mode !== "total") return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const row of props.warehouseStock) {
+      map.set(`${row.item_id}:${row.warehouse}`, Number(row.on_hand));
+    }
+    return map;
+  }, [props]);
 
   return (
     <>
@@ -66,7 +92,7 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
         </button>
       </div>
 
-      <div className="bg-card overflow-hidden rounded-xl border">
+      <div className="bg-card overflow-x-auto rounded-xl border">
         {visible.length === 0 ? (
           <EmptyState
             icon={Package}
@@ -74,10 +100,47 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
             description={
               query
                 ? "Try a different search."
-                : "Log an inbound movement to put something on the shelf."
+                : props.mode === "total"
+                  ? "Log inbound stock in a warehouse to put something on the shelf."
+                  : "Log an inbound movement to put something on the shelf."
             }
             className="py-10"
           />
+        ) : props.mode === "total" ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                {props.warehouses.map((warehouse) => (
+                  <TableHead key={warehouse.id} className="text-right">
+                    {warehouse.name}
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(visible as InventoryStock[]).map((row) => (
+                <TableRow key={row.item_id}>
+                  <TableCell>
+                    <ItemName name={row.item_name} active={row.is_active} />
+                  </TableCell>
+                  {props.warehouses.map((warehouse) => (
+                    <QtyCell
+                      key={warehouse.id}
+                      value={
+                        onHandByItemWarehouse.get(
+                          `${row.item_id}:${warehouse.id}`,
+                        ) ?? 0
+                      }
+                      muted
+                    />
+                  ))}
+                  <QtyCell value={row.on_hand} emphasize />
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : (
           <Table>
             <TableHeader>
@@ -89,17 +152,10 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((row) => (
+              {(visible as InventoryWarehouseStock[]).map((row) => (
                 <TableRow key={row.item_id}>
                   <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{row.item_name}</span>
-                      {!row.is_active ? (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          Retired
-                        </Badge>
-                      ) : null}
-                    </div>
+                    <ItemName name={row.item_name} active={row.is_active} />
                   </TableCell>
                   <TableCell className="tabular text-right text-success">
                     {row.inbound_total}
@@ -107,14 +163,7 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
                   <TableCell className="tabular text-right text-warning">
                     {row.outbound_total}
                   </TableCell>
-                  <TableCell
-                    className={cn(
-                      "tabular text-right font-semibold",
-                      Number(row.on_hand) === 0 && "text-muted-foreground",
-                    )}
-                  >
-                    {row.on_hand}
-                  </TableCell>
+                  <QtyCell value={row.on_hand} emphasize />
                 </TableRow>
               ))}
             </TableBody>
@@ -122,5 +171,42 @@ export function InventoryStockTable({ rows }: { rows: InventoryStock[] }) {
         )}
       </div>
     </>
+  );
+}
+
+function ItemName({ name, active }: { name: string; active: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="font-medium">{name}</span>
+      {!active ? (
+        <Badge variant="outline" className="text-muted-foreground">
+          Retired
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
+
+function QtyCell({
+  value,
+  muted,
+  emphasize,
+}: {
+  value: number;
+  muted?: boolean;
+  emphasize?: boolean;
+}) {
+  const zero = Number(value) === 0;
+  return (
+    <TableCell
+      className={cn(
+        "tabular text-right",
+        emphasize && "font-semibold",
+        muted && !emphasize && "text-muted-foreground",
+        zero && "text-muted-foreground",
+      )}
+    >
+      {value}
+    </TableCell>
   );
 }

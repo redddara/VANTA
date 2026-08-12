@@ -19,9 +19,14 @@ import { useState } from "react";
 export function InventoryMovementsList({
   movements,
   canVoid,
+  showWarehouse = false,
+  warehouseNames = {},
 }: {
   movements: InventoryMovementWithPeople[];
   canVoid: boolean;
+  /** When true, show which warehouse each movement belongs to (Total view). */
+  showWarehouse?: boolean;
+  warehouseNames?: Record<number, string>;
 }) {
   const router = useRouter();
   const [voiding, setVoiding] = useState<InventoryMovementWithPeople | null>(
@@ -78,6 +83,11 @@ export function InventoryMovementsList({
                   <Badge variant="outline" className="text-xs">
                     {INVENTORY_DIRECTION_LABELS[entry.direction]}
                   </Badge>
+                  {showWarehouse ? (
+                    <Badge variant="outline" className="text-muted-foreground text-xs">
+                      {warehouseNames[entry.warehouse] ?? `W${entry.warehouse}`}
+                    </Badge>
+                  ) : null}
                   {entry.remit_log_id ? (
                     <Badge variant="outline" className="text-muted-foreground text-xs">
                       From remit
