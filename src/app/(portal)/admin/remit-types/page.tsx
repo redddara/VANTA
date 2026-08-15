@@ -30,7 +30,7 @@ export default async function AdminRemitTypesPage() {
     <>
       <PageHeader
         title="Remit Types"
-        description="Catalog of what members can remit. Approving a remit adds that quantity to the linked inventory item automatically."
+        description="Catalog of what members can remit. Approving a remit adds that quantity to Warehouse 1 inventory automatically."
       />
       <RemitTypesManager
         types={typesResult.data ?? []}

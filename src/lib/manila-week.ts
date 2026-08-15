@@ -1,4 +1,4 @@
-/** Manila (UTC+8) calendar helpers for remit weeks (Sunday-start). */
+/** Manila (UTC+8) calendar helpers for remit weeks (Monday–Sunday). */
 
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
@@ -8,7 +8,7 @@ function manilaParts(date = new Date()) {
     year: shifted.getUTCFullYear(),
     month: shifted.getUTCMonth(), // 0-based
     day: shifted.getUTCDate(),
-    dow: shifted.getUTCDay(), // 0 = Sunday
+    dow: shifted.getUTCDay(), // 0 = Sunday … 6 = Saturday
   };
 }
 
@@ -19,14 +19,19 @@ function toIsoDate(year: number, monthIndex: number, day: number): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Manila Sunday for a given instant (YYYY-MM-DD). */
+/** Days since Monday for a JS Sunday-based DOW. */
+function daysSinceMonday(dow: number): number {
+  return (dow + 6) % 7;
+}
+
+/** Manila Monday that opens the remit week for a given instant (YYYY-MM-DD). */
 export function manilaWeekStart(date = new Date()): string {
   const { year, month, day, dow } = manilaParts(date);
-  const sunday = new Date(Date.UTC(year, month, day - dow));
+  const monday = new Date(Date.UTC(year, month, day - daysSinceMonday(dow)));
   return toIsoDate(
-    sunday.getUTCFullYear(),
-    sunday.getUTCMonth(),
-    sunday.getUTCDate(),
+    monday.getUTCFullYear(),
+    monday.getUTCMonth(),
+    monday.getUTCDate(),
   );
 }
 
@@ -36,19 +41,21 @@ export function manilaMonth(date = new Date()): { year: number; month: number } 
   return { year, month: month + 1 };
 }
 
-/** Sundays whose week overlaps a Manila calendar month. */
-export function manilaSundaysInMonth(year: number, month: number): string[] {
+/** Mondays whose Mon–Sun week overlaps a Manila calendar month. */
+export function manilaWeeksInMonth(year: number, month: number): string[] {
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const lastOfMonth = new Date(Date.UTC(year, month, 0));
   const firstDow = firstOfMonth.getUTCDay();
-  const cursor = new Date(Date.UTC(year, month - 1, 1 - firstDow));
+  const cursor = new Date(
+    Date.UTC(year, month - 1, 1 - daysSinceMonday(firstDow)),
+  );
   const weeks: string[] = [];
 
   while (cursor.getTime() <= lastOfMonth.getTime()) {
-    const saturday = new Date(cursor);
-    saturday.setUTCDate(cursor.getUTCDate() + 6);
+    const sunday = new Date(cursor);
+    sunday.setUTCDate(cursor.getUTCDate() + 6);
     if (
-      saturday.getTime() >= firstOfMonth.getTime() &&
+      sunday.getTime() >= firstOfMonth.getTime() &&
       cursor.getTime() <= lastOfMonth.getTime()
     ) {
       weeks.push(
@@ -65,7 +72,10 @@ export function manilaSundaysInMonth(year: number, month: number): string[] {
   return weeks;
 }
 
-/** Next N Manila Sundays from (and including) the current week. */
+/** @deprecated Use manilaWeeksInMonth — kept for older imports. */
+export const manilaSundaysInMonth = manilaWeeksInMonth;
+
+/** Next N Manila Mondays from (and including) the current week. */
 export function upcomingManilaWeeks(count = 6): string[] {
   const current = manilaWeekStart();
   const [y, m, d] = current.split("-").map(Number);

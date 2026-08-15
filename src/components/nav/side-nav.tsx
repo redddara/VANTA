@@ -36,7 +36,7 @@ export function SideNav({
           href="/dashboard"
           className="inline-flex h-full items-center gap-3 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <VantaCrest size="md" animated priority />
+          <VantaCrest size="md" priority />
           <VantaWordmark className="text-xl" />
         </Link>
       </div>

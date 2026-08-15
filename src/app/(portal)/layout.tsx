@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { SiteUpdateDialog } from "@/components/announcements/site-update-dialog";
 import { SideNav } from "@/components/nav/side-nav";
 import { SiteHeader } from "@/components/nav/site-header";
@@ -13,15 +15,7 @@ function isAudience(
   return (ANNOUNCEMENT_AUDIENCES as readonly string[]).includes(value);
 }
 
-export default async function PortalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { profile } = await requireSession();
-  const warehouses = await getMyWarehouseAccess();
-  const items = visibleNavItems(profile, warehouses);
-
+async function PendingSiteUpdate() {
   const supabase = await createClient();
   const { data: pendingRows } = await supabase.rpc("vanta_pending_announcements");
   const pending: PendingAnnouncement[] = [];
@@ -36,6 +30,23 @@ export default async function PortalLayout({
     });
   }
   const announcement = pending[0] ?? null;
+
+  return (
+    <SiteUpdateDialog
+      key={announcement?.id ?? "none"}
+      announcement={announcement}
+    />
+  );
+}
+
+export default async function PortalLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { profile } = await requireSession();
+  const warehouses = await getMyWarehouseAccess();
+  const items = visibleNavItems(profile, warehouses);
 
   return (
     <div className="min-h-dvh lg:pl-60">
@@ -53,10 +64,9 @@ export default async function PortalLayout({
         </footer>
       </div>
 
-      <SiteUpdateDialog
-        key={announcement?.id ?? "none"}
-        announcement={announcement}
-      />
+      <Suspense fallback={null}>
+        <PendingSiteUpdate />
+      </Suspense>
     </div>
   );
 }

@@ -568,12 +568,15 @@ async function main() {
     assert(rows[0].reviewed_by === underbossId, "reviewed_by was not stamped from the JWT");
   });
 
-  await check("week_start is stamped as the Manila Sunday of created_at", async () => {
+  await check("week_start is stamped as the Manila Monday of created_at", async () => {
     const { rows } = await asSystem(
-      `select week_start = public.vanta_week_start(created_at) as ok from public.remit_logs where id = $1;`,
+      `select week_start = public.vanta_week_start(created_at) as ok,
+              extract(dow from week_start)::integer as dow
+       from public.remit_logs where id = $1;`,
       [remitId],
     );
     assert(rows[0].ok === true, "week_start does not match the trigger formula");
+    assert(Number(rows[0].dow) === 1, "week_start should be a Monday");
   });
 
   await check("weekly compliance counts only approved laundering quantity", async () => {

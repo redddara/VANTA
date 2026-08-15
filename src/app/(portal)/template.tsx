@@ -1,6 +1,6 @@
 /**
- * Remounts on every portal navigation so the page-enter motion can replay.
- * Layout stays mounted (sidebar/header do not animate away).
+ * Soft remount wrapper for portal navigations. Kept light so page switches
+ * feel instant instead of waiting on a long enter animation.
  */
 export default function PortalTemplate({
   children,

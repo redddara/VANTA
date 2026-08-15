@@ -73,16 +73,26 @@ const RemitTypeSchema = z.object({
   inventoryItemId: uuid.optional().nullable(),
 });
 
-function revalidateRemit() {
+function revalidateRemitLists() {
   revalidatePath("/dashboard");
-  revalidatePath("/roster");
   revalidatePath("/remit/mine");
-  revalidatePath("/remit/new");
   revalidatePath("/remit/compliance");
   revalidatePath("/remit/tracker");
-  revalidatePath("/inventory");
   revalidatePath("/admin/remit");
+}
+
+function revalidateRemitReview() {
+  revalidateRemitLists();
+  revalidatePath("/roster");
+  revalidatePath("/inventory");
+  revalidatePath("/admin/audit");
+}
+
+function revalidateRemitTypes() {
   revalidatePath("/admin/remit-types");
+  revalidatePath("/remit/mine");
+  revalidatePath("/remit/tracker");
+  revalidatePath("/admin/remit");
   revalidatePath("/admin/audit");
 }
 
@@ -124,7 +134,7 @@ export async function submitRemit(input: {
 
   if (error) return { ok: false, error: toActionError(error) };
 
-  revalidateRemit();
+  revalidateRemitLists();
   return {
     ok: true,
     message: parsed.data.targetWeekStart
@@ -161,7 +171,7 @@ export async function retargetRemitWeek(input: {
     return { ok: false, error: "Only an admin can move a remit to another week." };
   }
 
-  revalidateRemit();
+  revalidateRemitLists();
   return { ok: true, message: "Remit moved to the selected week." };
 }
 
@@ -182,7 +192,7 @@ export async function reviewRemit(input: {
   if (error) return { ok: false, error: toActionError(error) };
   if (!count) return { ok: false, error: "Only an admin can review remit entries." };
 
-  revalidateRemit();
+  revalidateRemitReview();
   return {
     ok: true,
     message:
@@ -222,7 +232,7 @@ export async function editRemit(input: {
   if (error) return { ok: false, error: toActionError(error) };
   if (!count) return { ok: false, error: "Only an admin can edit remit entries." };
 
-  revalidateRemit();
+  revalidateRemitLists();
   return { ok: true, message: "Remit entry updated and written to the audit log." };
 }
 
@@ -250,7 +260,7 @@ export async function voidRemit(id: string): Promise<ActionResult> {
     };
   }
 
-  revalidateRemit();
+  revalidateRemitReview();
   return { ok: true, message: "Remit deleted. A copy is kept in the audit log." };
 }
 
@@ -306,7 +316,7 @@ export async function createRemitType(input: {
     return { ok: false, error: toActionError(error) };
   }
 
-  revalidateRemit();
+  revalidateRemitTypes();
   return { ok: true, message: `Added ${parsed.data.name}.` };
 }
 
@@ -346,7 +356,7 @@ export async function updateRemitType(input: {
   }
   if (!count) return { ok: false, error: "Only an admin can edit remit types." };
 
-  revalidateRemit();
+  revalidateRemitTypes();
   return { ok: true, message: `Updated ${parsed.data.name}.` };
 }
 
@@ -368,6 +378,6 @@ export async function deleteRemitType(id: string): Promise<ActionResult> {
   }
   if (!count) return { ok: false, error: "Only an admin can delete remit types." };
 
-  revalidateRemit();
+  revalidateRemitTypes();
   return { ok: true, message: "Remit type removed." };
 }

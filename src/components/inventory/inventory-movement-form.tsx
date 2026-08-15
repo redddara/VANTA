@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,6 +66,7 @@ export function InventoryMovementForm({
 }) {
   const warehouseId = warehouse.id;
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const qtyRef = useRef<HTMLInputElement | null>(null);
   const activeItems = items.filter((i) => i.is_active);
   const defaultItem = activeItems[0]?.id ?? "";
@@ -110,7 +111,9 @@ export function InventoryMovementForm({
       note: "",
       memberId: null,
     });
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
     requestAnimationFrame(() => qtyRef.current?.focus());
   }
 

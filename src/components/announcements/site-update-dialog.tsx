@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,7 +25,6 @@ export function SiteUpdateDialog({
 }: {
   announcement: PendingAnnouncement | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(announcement != null);
   const [pending, startTransition] = useTransition();
   const dismissing = useRef(false);
@@ -44,8 +42,9 @@ export function SiteUpdateDialog({
         toast.error(result.error);
         return;
       }
+      // Close locally. Remaining updates show on the next navigation instead of
+      // forcing a full portal shell refresh here.
       setOpen(false);
-      router.refresh();
     });
   }
 

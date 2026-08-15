@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
 
 import {
@@ -13,6 +13,10 @@ import { REMIT_PROOF_BUCKET } from "@/lib/remit-proof";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+/**
+ * Signs storage URLs only when the thumb scrolls into view, so long remit
+ * lists do not fire hundreds of storage calls on first paint.
+ */
 export function RemitProofThumb({
   path,
   className,
@@ -20,15 +24,37 @@ export function RemitProofThumb({
   path: string | null | undefined;
   className?: string;
 }) {
+  const rootRef = useRef<HTMLButtonElement | null>(null);
+  const [visible, setVisible] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!path) {
-      setUrl(null);
-      setFailed(false);
+    const node = rootRef.current;
+    if (!node || !path) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "120px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [path]);
+
+  useEffect(() => {
+    if (!path || !visible) {
+      if (!path) {
+        setUrl(null);
+        setFailed(false);
+        setLoading(false);
+      }
       return;
     }
 
@@ -54,13 +80,14 @@ export function RemitProofThumb({
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, visible]);
 
   if (!path) return null;
 
   return (
     <>
       <button
+        ref={rootRef}
         type="button"
         onClick={() => setOpen(true)}
         disabled={!url}
@@ -71,13 +98,19 @@ export function RemitProofThumb({
         )}
         title="View proof"
       >
-        {loading ? (
+        {loading || (!url && !failed && visible) ? (
           <Loader2 className="text-muted-foreground absolute inset-0 m-auto size-4 animate-spin" />
         ) : failed || !url ? (
           <ImageIcon className="text-muted-foreground absolute inset-0 m-auto size-4" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
-          <img src={url} alt="Remit proof" className="size-full object-cover" />
+          <img
+            src={url}
+            alt="Remit proof"
+            loading="lazy"
+            decoding="async"
+            className="size-full object-cover"
+          />
         )}
       </button>
 

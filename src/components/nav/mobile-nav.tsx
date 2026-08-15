@@ -45,7 +45,7 @@ export function MobileNav({
       <SheetContent side="left" className="w-72 gap-0 p-0">
         <SheetHeader className="border-b p-5">
           <SheetTitle className="flex items-center gap-3">
-            <VantaCrest size="sm" animated />
+            <VantaCrest size="sm" />
             <VantaWordmark className="text-base" />
           </SheetTitle>
           <SheetDescription className="text-left">

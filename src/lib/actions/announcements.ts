@@ -25,9 +25,14 @@ const AnnouncementSchema = z.object({
 });
 
 function revalidateAnnouncements() {
-  revalidatePath("/", "layout");
   revalidatePath("/admin/announcements");
   revalidatePath("/admin/audit");
+}
+
+function revalidateAnnouncementShell() {
+  // New/edited active updates need the portal shell to pick them up.
+  revalidatePath("/", "layout");
+  revalidateAnnouncements();
 }
 
 export async function createAnnouncement(input: {
@@ -58,7 +63,7 @@ export async function createAnnouncement(input: {
 
   if (error) return { ok: false, error: toActionError(error) };
 
-  revalidateAnnouncements();
+  revalidateAnnouncementShell();
   return { ok: true, message: "Update posted. Members will see it once." };
 }
 
@@ -89,7 +94,7 @@ export async function updateAnnouncement(input: {
   if (error) return { ok: false, error: toActionError(error) };
   if (!count) return { ok: false, error: "Only an admin can edit updates." };
 
-  revalidateAnnouncements();
+  revalidateAnnouncementShell();
   return { ok: true, message: "Update saved." };
 }
 
@@ -106,7 +111,7 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: toActionError(error) };
   if (!count) return { ok: false, error: "Only an admin can delete updates." };
 
-  revalidateAnnouncements();
+  revalidateAnnouncementShell();
   return { ok: true, message: "Update deleted." };
 }
 
@@ -126,12 +131,10 @@ export async function dismissAnnouncement(id: string): Promise<ActionResult> {
   if (error) {
     // Already dismissed — treat as success so the popup closes.
     if (error.code === "23505") {
-      revalidateAnnouncements();
       return { ok: true, message: "Got it." };
     }
     return { ok: false, error: toActionError(error) };
   }
 
-  revalidateAnnouncements();
   return { ok: true, message: "Got it." };
 }

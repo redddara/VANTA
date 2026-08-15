@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { STRATEGY_VIDEO_BUCKET } from "@/lib/strategy-video";
 import { createClient } from "@/lib/supabase/client";
 import { youtubeEmbedUrl } from "@/lib/youtube";
 
+/**
+ * Defers signed-URL work and video decode until the member asks to play,
+ * so /strategies stays light when many cards are on screen.
+ */
 export function StrategyVideo({
   path,
   url,
@@ -15,17 +20,15 @@ export function StrategyVideo({
   /** Legacy external URL (YouTube), if any. */
   url?: string | null;
 }) {
+  const [active, setActive] = useState(false);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(Boolean(path));
+  const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const requested = useRef(false);
 
   useEffect(() => {
-    if (!path) {
-      setSignedUrl(null);
-      setLoading(false);
-      setFailed(false);
-      return;
-    }
+    if (!path || !active || requested.current) return;
+    requested.current = true;
 
     let cancelled = false;
     setLoading(true);
@@ -49,9 +52,23 @@ export function StrategyVideo({
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, active]);
 
   if (path) {
+    if (!active) {
+      return (
+        <button
+          type="button"
+          onClick={() => setActive(true)}
+          className="bg-muted/80 hover:bg-muted flex aspect-video w-full items-center justify-center gap-2 rounded-lg border transition-colors"
+        >
+          <Play className="text-muted-foreground size-5" />
+          <span className="text-muted-foreground text-sm font-medium">
+            Load video
+          </span>
+        </button>
+      );
+    }
     if (loading) {
       return (
         <div className="bg-muted flex aspect-video w-full items-center justify-center rounded-lg border">
@@ -61,7 +78,20 @@ export function StrategyVideo({
     }
     if (failed || !signedUrl) {
       return (
-        <p className="text-muted-foreground text-xs">Video could not be loaded.</p>
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-xs">Video could not be loaded.</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              requested.current = false;
+              setActive(true);
+            }}
+          >
+            Retry
+          </Button>
+        </div>
       );
     }
     return (
@@ -70,7 +100,7 @@ export function StrategyVideo({
           src={signedUrl}
           controls
           playsInline
-          preload="metadata"
+          preload="none"
           className="aspect-video w-full"
         />
       </div>
@@ -81,6 +111,20 @@ export function StrategyVideo({
 
   const embed = youtubeEmbedUrl(url);
   if (embed) {
+    if (!active) {
+      return (
+        <button
+          type="button"
+          onClick={() => setActive(true)}
+          className="bg-muted/80 hover:bg-muted flex aspect-video w-full items-center justify-center gap-2 rounded-lg border transition-colors"
+        >
+          <Play className="text-muted-foreground size-5" />
+          <span className="text-muted-foreground text-sm font-medium">
+            Load video
+          </span>
+        </button>
+      );
+    }
     return (
       <div className="bg-background/60 aspect-video w-full overflow-hidden rounded-lg border">
         <iframe

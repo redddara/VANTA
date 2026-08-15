@@ -19,7 +19,7 @@ export function SiteHeader({
   const name = displayName(profile);
 
   return (
-    <header className="bg-background/85 sticky top-0 z-40 border-b backdrop-blur-md lg:hidden">
+    <header className="bg-background/95 sticky top-0 z-40 border-b lg:hidden">
       <div className="flex h-20 items-center gap-2 px-4">
         <MobileNav items={items} memberName={name} />
 
@@ -27,7 +27,7 @@ export function SiteHeader({
           href="/dashboard"
           className="inline-flex h-full items-center gap-3 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <VantaCrest size="md" animated priority />
+          <VantaCrest size="md" priority />
           <VantaWordmark className="text-xl" />
         </Link>
 

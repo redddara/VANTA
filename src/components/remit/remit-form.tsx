@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -80,6 +80,7 @@ export function RemitForm({
   canCreditOthers?: boolean;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const qtyRef = useRef<HTMLInputElement | null>(null);
   const self = members.find((m) => m.id === selfId) ?? null;
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
@@ -163,7 +164,9 @@ export function RemitForm({
       isAdvance: false,
       targetWeekStart: advanceWeeks[0] ?? thisWeek,
     });
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
     requestAnimationFrame(() => qtyRef.current?.focus());
   }
 
@@ -246,7 +249,7 @@ export function RemitForm({
               ) : null}
               {selectedType?.inventory_item_id ? (
                 <FormDescription>
-                  Approved quantity is added to inventory inbound.
+                  Approved quantity is added to Warehouse 1 inventory inbound.
                 </FormDescription>
               ) : null}
               <FormMessage />

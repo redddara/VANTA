@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { requireStaff } from "@/lib/auth";
 import {
   manilaMonth,
-  manilaSundaysInMonth,
+  manilaWeeksInMonth,
   manilaWeekStart,
   upcomingManilaWeeks,
 } from "@/lib/manila-week";
@@ -35,7 +35,7 @@ export default async function RemitTrackerPage({
   const current = manilaMonth();
   const year = Number(params.year) || current.year;
   const month = Number(params.month) || current.month;
-  const weeks = manilaSundaysInMonth(year, month);
+  const weeks = manilaWeeksInMonth(year, month);
   const currentWeek = manilaWeekStart();
   const selectedWeek =
     params.week && weeks.includes(params.week)
