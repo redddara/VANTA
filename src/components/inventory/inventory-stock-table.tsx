@@ -36,12 +36,20 @@ type WarehouseProps = {
 export function InventoryStockTable(props: TotalProps | WarehouseProps) {
   const [query, setQuery] = useState("");
   const [showRetired, setShowRetired] = useState(false);
+  const [showEmpty, setShowEmpty] = useState(false);
   const rows = props.rows;
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return rows
       .filter((r) => (showRetired ? true : r.is_active))
+      .filter((r) =>
+        showEmpty
+          ? true
+          : Number(r.on_hand) !== 0 ||
+            Number(r.inbound_total) !== 0 ||
+            Number(r.outbound_total) !== 0,
+      )
       .filter((r) =>
         needle ? r.item_name.toLowerCase().includes(needle) : true,
       )
@@ -52,7 +60,7 @@ export function InventoryStockTable(props: TotalProps | WarehouseProps) {
         }
         return a.item_name.localeCompare(b.item_name);
       });
-  }, [rows, query, showRetired]);
+  }, [rows, query, showRetired, showEmpty]);
 
   const onHandByItemWarehouse = useMemo(() => {
     if (props.mode !== "total") return new Map<string, number>();
@@ -79,6 +87,19 @@ export function InventoryStockTable(props: TotalProps | WarehouseProps) {
         </div>
         <button
           type="button"
+          onClick={() => setShowEmpty((v) => !v)}
+          aria-pressed={showEmpty}
+          className={cn(
+            "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+            showEmpty
+              ? "border-primary/40 bg-primary/12 text-primary"
+              : "border-border text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {showEmpty ? "Hiding empty" : "Show empty"}
+        </button>
+        <button
+          type="button"
           onClick={() => setShowRetired((v) => !v)}
           aria-pressed={showRetired}
           className={cn(
@@ -101,8 +122,12 @@ export function InventoryStockTable(props: TotalProps | WarehouseProps) {
               query
                 ? "Try a different search."
                 : props.mode === "total"
-                  ? "Log inbound stock in a warehouse to put something on the shelf."
-                  : "Log an inbound movement to put something on the shelf."
+                  ? showEmpty
+                    ? "Log inbound stock in a warehouse to put something on the shelf."
+                    : "Nothing on hand yet. Turn on Show empty to see the full catalog."
+                  : showEmpty
+                    ? "Log an inbound movement to put something on the shelf."
+                    : "Nothing on hand here. Turn on Show empty to see the full catalog."
             }
             className="py-10"
           />

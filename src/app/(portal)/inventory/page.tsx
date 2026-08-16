@@ -223,8 +223,9 @@ export default async function InventoryPage({
                 Items
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                Catalog of trackable stash items. Retire instead of deleting if
-                they already have movements.
+                Catalog of trackable stash items. Rename anytime — remits stay
+                linked by id. Retire instead of deleting if they already have
+                movements.
               </p>
             </div>
             <InventoryItemsManager items={items} />
