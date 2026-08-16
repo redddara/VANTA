@@ -15,11 +15,13 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/strategies", label: "Strategies", minRank: "Prospect", group: "main" },
   { href: "/hacking", label: "Hacking Practice", minRank: "Operator", group: "main" },
   { href: "/remit/mine", label: "Log Remit", minRank: "Prospect", group: "actions" },
+  { href: "/reimbursement", label: "Reimbursement Logs", minRank: "Prospect", group: "actions" },
   { href: "/remit/tracker", label: "Remit Tracker", minRank: "Enforcer", group: "actions" },
   // Visibility is assignment/admin gated in visibleNavItems (not rank alone).
   { href: "/inventory", label: "Inventory", minRank: "Prospect", group: "actions" },
   { href: "/reputation/new", label: "Set Reputation", minRank: "Enforcer", group: "actions" },
   { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
+  { href: "/admin/reimbursement", label: "Reimbursement Queue", minRank: "Underboss", group: "admin" },
   { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
   { href: "/admin/announcements", label: "Updates", minRank: "Underboss", group: "admin" },
   { href: "/admin/members", label: "Members", minRank: "Underboss", group: "admin" },

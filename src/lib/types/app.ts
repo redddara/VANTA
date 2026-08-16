@@ -3,6 +3,8 @@ import {
   RANKS,
   REP_BANDS,
   REMIT_STATUSES,
+  REIMBURSEMENT_ENTRY_TYPES,
+  REIMBURSEMENT_STATUSES,
   INVENTORY_DIRECTIONS,
   type AnnouncementAudience,
 } from "@/lib/constants";
@@ -15,6 +17,8 @@ import type { Tables } from "@/lib/types/database.types";
 export type Rank = (typeof RANKS)[number];
 export type RepBand = (typeof REP_BANDS)[number];
 export type RemitStatus = (typeof REMIT_STATUSES)[number];
+export type ReimbursementEntryType = (typeof REIMBURSEMENT_ENTRY_TYPES)[number];
+export type ReimbursementStatus = (typeof REIMBURSEMENT_STATUSES)[number];
 export type InventoryDirection = (typeof INVENTORY_DIRECTIONS)[number];
 export type { AnnouncementAudience };
 
@@ -167,6 +171,20 @@ export type ProfileRef = {
 export type RemitLogWithPeople = RemitLogWithType & {
   member: ProfileRef | null;
   submitter: ProfileRef | null;
+  reviewer: ProfileRef | null;
+};
+
+export type ReimbursementLog = Omit<
+  Tables<"reimbursement_logs">,
+  "entry_type" | "status" | "amount"
+> & {
+  entry_type: ReimbursementEntryType;
+  status: ReimbursementStatus;
+  amount: number;
+};
+
+export type ReimbursementLogWithPeople = ReimbursementLog & {
+  logger: ProfileRef | null;
   reviewer: ProfileRef | null;
 };
 

@@ -78,6 +78,43 @@ export const REMIT_STATUS_LABELS: Record<(typeof REMIT_STATUSES)[number], string
   rejected: "Rejected",
 };
 
+/** Own pocket spend vs pulling cash from org funds. */
+export const REIMBURSEMENT_ENTRY_TYPES = [
+  "own_expense",
+  "org_withdrawal",
+] as const;
+
+export const REIMBURSEMENT_ENTRY_TYPE_LABELS: Record<
+  (typeof REIMBURSEMENT_ENTRY_TYPES)[number],
+  string
+> = {
+  own_expense: "Own expense",
+  org_withdrawal: "Org funds withdrawal",
+};
+
+/**
+ * none / pending / reimbursed / rejected — own expense
+ * recorded — org withdrawal (no reimburse step)
+ */
+export const REIMBURSEMENT_STATUSES = [
+  "none",
+  "pending",
+  "reimbursed",
+  "rejected",
+  "recorded",
+] as const;
+
+export const REIMBURSEMENT_STATUS_LABELS: Record<
+  (typeof REIMBURSEMENT_STATUSES)[number],
+  string
+> = {
+  none: "Not requested",
+  pending: "Pending reimburse",
+  reimbursed: "Reimbursed",
+  rejected: "Rejected",
+  recorded: "Recorded",
+};
+
 export const INVENTORY_DIRECTIONS = ["inbound", "outbound"] as const;
 
 export const INVENTORY_DIRECTION_LABELS: Record<

@@ -21,6 +21,13 @@ export const REMIT_SELECT = `
   reviewer:profiles!remit_logs_reviewed_by_fkey(${PERSON})
 `;
 
+export const REIMBURSEMENT_SELECT = `
+  id, entry_date, logged_by, entry_type, purpose, amount, status,
+  reviewed_by, created_at,
+  logger:profiles!reimbursement_logs_logged_by_fkey(${PERSON}),
+  reviewer:profiles!reimbursement_logs_reviewed_by_fkey(${PERSON})
+`;
+
 export const AUDIT_SELECT = `
   id, actor_id, action, target_table, target_id, detail, created_at,
   actor:profiles!audit_log_actor_id_fkey(${PERSON})

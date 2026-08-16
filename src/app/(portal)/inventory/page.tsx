@@ -31,6 +31,7 @@ import {
 } from "@/lib/types/app";
 
 export const metadata: Metadata = { title: "Inventory" };
+export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ w?: string }>;
 
