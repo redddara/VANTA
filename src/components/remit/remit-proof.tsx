@@ -20,9 +20,13 @@ import { cn } from "@/lib/utils";
 export function RemitProofThumb({
   path,
   className,
+  bucket = REMIT_PROOF_BUCKET,
+  title = "Proof",
 }: {
   path: string | null | undefined;
   className?: string;
+  bucket?: string;
+  title?: string;
 }) {
   const rootRef = useRef<HTMLButtonElement | null>(null);
   const [visible, setVisible] = useState(false);
@@ -64,7 +68,7 @@ export function RemitProofThumb({
 
     const supabase = createClient();
     void supabase.storage
-      .from(REMIT_PROOF_BUCKET)
+      .from(bucket)
       .createSignedUrl(path, 60 * 60)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -80,7 +84,7 @@ export function RemitProofThumb({
     return () => {
       cancelled = true;
     };
-  }, [path, visible]);
+  }, [path, visible, bucket]);
 
   if (!path) return null;
 
@@ -96,7 +100,7 @@ export function RemitProofThumb({
           "hover:border-foreground/30 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
           className,
         )}
-        title="View proof"
+        title={`View ${title.toLowerCase()}`}
       >
         {loading || (!url && !failed && visible) ? (
           <Loader2 className="text-muted-foreground absolute inset-0 m-auto size-4 animate-spin" />
@@ -106,7 +110,7 @@ export function RemitProofThumb({
           // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
           <img
             src={url}
-            alt="Remit proof"
+            alt={title}
             loading="lazy"
             decoding="async"
             className="size-full object-cover"
@@ -117,13 +121,13 @@ export function RemitProofThumb({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Remit proof</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
             <img
               src={url}
-              alt="Remit proof full size"
+              alt={`${title} full size`}
               className="max-h-[75vh] w-full rounded-md object-contain"
             />
           ) : null}

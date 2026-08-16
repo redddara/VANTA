@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +8,7 @@ import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ProofAttach } from "@/components/remit/proof-attach";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -29,6 +31,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { submitReimbursement } from "@/lib/actions/reimbursement";
 import { REIMBURSEMENT_ENTRY_TYPE_LABELS } from "@/lib/constants";
+import {
+  REIMBURSEMENT_PROOF_BUCKET,
+  reimbursementProofExtension,
+  validateReimbursementProofFile,
+  type ReimbursementProofMime,
+} from "@/lib/reimbursement-proof";
+import { createClient } from "@/lib/supabase/client";
 
 function manilaToday(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -57,10 +66,13 @@ type Values = z.infer<typeof Schema>;
 
 export function ReimbursementForm({
   canLogOrgWithdrawal,
+  selfId,
 }: {
   canLogOrgWithdrawal: boolean;
+  selfId: string;
 }) {
   const router = useRouter();
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const form = useForm<Values>({
     resolver: zodResolver(Schema),
     defaultValues: {
@@ -76,11 +88,38 @@ export function ReimbursementForm({
   const pending = form.formState.isSubmitting;
 
   async function onSubmit(values: Values) {
+    let proofPath: string | null = null;
+    const supabase = createClient();
+
+    if (proofFile) {
+      const issue = validateReimbursementProofFile(proofFile);
+      if (issue) {
+        toast.error(issue);
+        return;
+      }
+      const ext = reimbursementProofExtension(
+        proofFile.type as ReimbursementProofMime,
+      );
+      proofPath = `${selfId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(REIMBURSEMENT_PROOF_BUCKET)
+        .upload(proofPath, proofFile, {
+          cacheControl: "3600",
+          contentType: proofFile.type,
+          upsert: false,
+        });
+      if (uploadError) {
+        toast.error(uploadError.message || "Could not upload the screenshot.");
+        return;
+      }
+    }
+
     const result = await submitReimbursement({
       entryType: values.entryType,
       entryDate: values.entryDate,
       amount: values.amount,
       purpose: values.purpose,
+      proofPath,
       requestReimbursement:
         values.entryType === "own_expense"
           ? values.requestReimbursement
@@ -88,11 +127,17 @@ export function ReimbursementForm({
     });
 
     if (!result.ok) {
+      if (proofPath) {
+        await supabase.storage
+          .from(REIMBURSEMENT_PROOF_BUCKET)
+          .remove([proofPath]);
+      }
       toast.error(result.error);
       return;
     }
 
     toast.success(result.message);
+    setProofFile(null);
     form.reset({
       entryType: values.entryType,
       entryDate: manilaToday(),
@@ -201,6 +246,12 @@ export function ReimbursementForm({
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        <ProofAttach
+          file={proofFile}
+          onChange={setProofFile}
+          disabled={pending}
         />
 
         {entryType === "own_expense" ? (

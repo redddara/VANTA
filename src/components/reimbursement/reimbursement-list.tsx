@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Banknote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { RemitProofThumb } from "@/components/remit/remit-proof";
 import { ReimbursementStatusBadge } from "@/components/reimbursement/reimbursement-status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
@@ -19,6 +20,7 @@ import {
 import { deleteReimbursement } from "@/lib/actions/reimbursement";
 import { REIMBURSEMENT_ENTRY_TYPE_LABELS } from "@/lib/constants";
 import { formatMoney, formatDate } from "@/lib/format";
+import { REIMBURSEMENT_PROOF_BUCKET } from "@/lib/reimbursement-proof";
 import type {
   ReimbursementLogWithPeople,
   ReimbursementStatus,
@@ -65,6 +67,7 @@ export function ReimbursementList({
             {showLogger ? <TableHead>Logged by</TableHead> : null}
             <TableHead>Type</TableHead>
             <TableHead>Purpose</TableHead>
+            <TableHead>Proof</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-12" />
@@ -92,6 +95,17 @@ export function ReimbursementList({
                 </TableCell>
                 <TableCell className="max-w-[16rem] truncate text-sm">
                   {entry.purpose}
+                </TableCell>
+                <TableCell>
+                  {entry.proof_path ? (
+                    <RemitProofThumb
+                      path={entry.proof_path}
+                      bucket={REIMBURSEMENT_PROOF_BUCKET}
+                      title="Receipt / proof"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground text-xs">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="tabular text-right text-sm font-medium">
                   {formatMoney(entry.amount)}

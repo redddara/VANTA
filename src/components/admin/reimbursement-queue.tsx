@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { RemitProofThumb } from "@/components/remit/remit-proof";
 import { ReimbursementStatusBadge } from "@/components/reimbursement/reimbursement-status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
@@ -22,6 +23,7 @@ import { reviewReimbursement } from "@/lib/actions/reimbursement";
 import { REIMBURSEMENT_ENTRY_TYPE_LABELS } from "@/lib/constants";
 import { displayName } from "@/lib/display";
 import { formatDate, formatMoney } from "@/lib/format";
+import { REIMBURSEMENT_PROOF_BUCKET } from "@/lib/reimbursement-proof";
 import type {
   ReimbursementLogWithPeople,
   ReimbursementStatus,
@@ -141,6 +143,7 @@ export function ReimbursementQueue({
                 <TableHead>Date</TableHead>
                 <TableHead>Logged by</TableHead>
                 <TableHead>Purpose</TableHead>
+                <TableHead>Proof</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -157,6 +160,17 @@ export function ReimbursementQueue({
                   </TableCell>
                   <TableCell className="max-w-[18rem] text-sm">
                     {entry.purpose}
+                  </TableCell>
+                  <TableCell>
+                    {entry.proof_path ? (
+                      <RemitProofThumb
+                        path={entry.proof_path}
+                        bucket={REIMBURSEMENT_PROOF_BUCKET}
+                        title="Receipt / proof"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="tabular text-right text-sm font-medium">
                     {formatMoney(entry.amount)}

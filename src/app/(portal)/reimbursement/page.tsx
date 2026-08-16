@@ -37,7 +37,7 @@ export default async function ReimbursementPage() {
     <>
       <PageHeader
         title="Reimbursement Logs"
-        description="Log own-expense spends (optional reimbursement request) and org funds withdrawals (required whenever org cash is pulled)."
+        description="Log own-expense spends (optional reimbursement request) and org funds withdrawals. Paste a screenshot as proof when you have one."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -46,7 +46,10 @@ export default async function ReimbursementPage() {
             <CardTitle className="text-sm">New log</CardTitle>
           </CardHeader>
           <CardContent>
-            <ReimbursementForm canLogOrgWithdrawal={staff} />
+            <ReimbursementForm
+              canLogOrgWithdrawal={staff}
+              selfId={profile.id}
+            />
           </CardContent>
         </Card>
 

@@ -31,6 +31,12 @@ const SubmitSchema = z.object({
   amount,
   entryDate,
   requestReimbursement: z.boolean().optional(),
+  proofPath: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional(),
 });
 
 const ReviewSchema = z.object({
@@ -49,12 +55,18 @@ export async function submitReimbursement(input: {
   amount: number;
   entryDate: string;
   requestReimbursement?: boolean;
+  proofPath?: string | null;
 }): Promise<ActionResult> {
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
   const { profile } = await requireSession();
   const supabase = await createClient();
+
+  const proofPath = parsed.data.proofPath?.trim() || null;
+  if (proofPath && !proofPath.startsWith(`${profile.id}/`)) {
+    return { ok: false, error: "Invalid proof upload." };
+  }
 
   if (parsed.data.entryType === "org_withdrawal") {
     if (!isStaff(profile.crew_rank)) {
@@ -71,6 +83,7 @@ export async function submitReimbursement(input: {
       entry_date: parsed.data.entryDate,
       logged_by: profile.id,
       status: "recorded",
+      proof_path: proofPath,
     });
 
     if (error) return { ok: false, error: toActionError(error) };
@@ -88,6 +101,7 @@ export async function submitReimbursement(input: {
     entry_date: parsed.data.entryDate,
     logged_by: profile.id,
     status,
+    proof_path: proofPath,
   });
 
   if (error) return { ok: false, error: toActionError(error) };

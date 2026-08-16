@@ -23,7 +23,7 @@ export const REMIT_SELECT = `
 
 export const REIMBURSEMENT_SELECT = `
   id, entry_date, logged_by, entry_type, purpose, amount, status,
-  reviewed_by, created_at,
+  reviewed_by, proof_path, created_at,
   logger:profiles!reimbursement_logs_logged_by_fkey(${PERSON}),
   reviewer:profiles!reimbursement_logs_reviewed_by_fkey(${PERSON})
 `;

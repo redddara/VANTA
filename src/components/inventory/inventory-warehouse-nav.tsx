@@ -1,4 +1,4 @@
-import Link from "next/link";
+"use client";
 
 import type { InventoryWarehouse } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
@@ -9,18 +9,17 @@ export function InventoryWarehouseNav({
   view,
   warehouses,
   showTotal,
+  onSelect,
 }: {
   view: InventoryView;
   warehouses: readonly InventoryWarehouse[];
   showTotal: boolean;
+  onSelect: (view: InventoryView) => void;
 }) {
-  const tabs: { key: InventoryView; href: string; label: string }[] = [
-    ...(showTotal
-      ? [{ key: "total" as const, href: "/inventory", label: "Total" }]
-      : []),
+  const tabs: { key: InventoryView; label: string }[] = [
+    ...(showTotal ? [{ key: "total" as const, label: "Total" }] : []),
     ...warehouses.map((w) => ({
       key: w.id as InventoryView,
-      href: `/inventory?w=${w.id}`,
       label: w.name,
     })),
   ];
@@ -35,9 +34,10 @@ export function InventoryWarehouseNav({
       {tabs.map((tab) => {
         const active = tab.key === view;
         return (
-          <Link
+          <button
             key={String(tab.key)}
-            href={tab.href}
+            type="button"
+            onClick={() => onSelect(tab.key)}
             aria-current={active ? "page" : undefined}
             className={cn(
               "inline-flex h-[calc(100%-1px)] items-center justify-center rounded-md px-3 py-1 text-sm font-medium transition-colors",
@@ -47,7 +47,7 @@ export function InventoryWarehouseNav({
             )}
           >
             {tab.label}
-          </Link>
+          </button>
         );
       })}
     </nav>
