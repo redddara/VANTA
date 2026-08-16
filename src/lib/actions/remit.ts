@@ -6,6 +6,7 @@ import { z } from "zod";
 import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shared";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/types/app";
 
 const uuid = z.uuid("Pick a value from the list.");
 
@@ -121,18 +122,46 @@ export async function submitRemit(input: {
     return { ok: false, error: "Proof upload looks invalid. Attach the image again." };
   }
 
-  const { error } = await supabase.from("remit_logs").insert({
-    member_id: parsed.data.memberId,
-    remit_type_id: parsed.data.remitTypeId,
-    quantity: parsed.data.quantity,
-    amount: optionalAmount(parsed.data.amount),
-    description: parsed.data.description || null,
-    proof_path: proofPath,
-    submitted_by: profile.id,
-    target_week_start: parsed.data.targetWeekStart || null,
-  });
+  const { data: created, error } = await supabase
+    .from("remit_logs")
+    .insert({
+      member_id: parsed.data.memberId,
+      remit_type_id: parsed.data.remitTypeId,
+      quantity: parsed.data.quantity,
+      amount: optionalAmount(parsed.data.amount),
+      description: parsed.data.description || null,
+      proof_path: proofPath,
+      submitted_by: profile.id,
+      target_week_start: parsed.data.targetWeekStart || null,
+    })
+    .select("id")
+    .single();
 
   if (error) return { ok: false, error: toActionError(error) };
+
+  // Underboss+ logging credits Warehouse 1 immediately — no second approve step.
+  if (isAdmin(profile.crew_rank) && created?.id) {
+    const { error: approveError, count } = await supabase
+      .from("remit_logs")
+      .update({ status: "approved" }, { count: "exact" })
+      .eq("id", created.id);
+
+    if (approveError) return { ok: false, error: toActionError(approveError) };
+    if (!count) {
+      return {
+        ok: false,
+        error: "Remit was logged but could not be approved for inventory.",
+      };
+    }
+
+    revalidateRemitReview();
+    return {
+      ok: true,
+      message: parsed.data.targetWeekStart
+        ? "Advance remit logged, approved, and added to Warehouse 1."
+        : "Remit logged, approved, and added to Warehouse 1.",
+    };
+  }
 
   revalidateRemitLists();
   return {

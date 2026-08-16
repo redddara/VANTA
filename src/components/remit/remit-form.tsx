@@ -71,6 +71,7 @@ export function RemitForm({
   types,
   selfId,
   canCreditOthers = false,
+  creditsWarehouseOnLog = false,
 }: {
   members: SelectableMember[];
   types: RemitType[];
@@ -78,6 +79,8 @@ export function RemitForm({
   selfId: string;
   /** Enforcer+: show the optional “credit someone else” control. */
   canCreditOthers?: boolean;
+  /** Underboss+: logging auto-approves into Warehouse 1. */
+  creditsWarehouseOnLog?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -249,7 +252,9 @@ export function RemitForm({
               ) : null}
               {selectedType?.inventory_item_id ? (
                 <FormDescription>
-                  Approved quantity is added to Warehouse 1 inventory inbound.
+                  {creditsWarehouseOnLog
+                    ? "Quantity is added to Warehouse 1 inventory when you log it."
+                    : "Approved quantity is added to Warehouse 1 inventory inbound."}
                 </FormDescription>
               ) : null}
               <FormMessage />

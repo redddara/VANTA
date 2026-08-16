@@ -15,6 +15,7 @@ import { getSelectableMembers } from "@/lib/members";
 import { REMIT_SELECT, REMIT_TYPE_SELECT, WEEKLY_COMPLIANCE_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isAdmin,
   isStaff,
   type RemitLogWithPeople,
   type RemitStatus,
@@ -29,6 +30,7 @@ export default async function LogRemitPage() {
   const { profile } = await requireSession();
   const supabase = await createClient();
   const staff = isStaff(profile.crew_rank);
+  const admin = isAdmin(profile.crew_rank);
 
   const [typesResult, recentResult, complianceResult, members] = await Promise.all([
     supabase
@@ -100,6 +102,7 @@ export default async function LogRemitPage() {
               types={types}
               selfId={profile.id}
               canCreditOthers={staff}
+              creditsWarehouseOnLog={admin}
             />
           </CardContent>
         </Card>
