@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { RankBadge } from "@/components/nav/rank-badge";
 import { RemitProofThumb } from "@/components/remit/remit-proof";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PersonCell } from "@/components/shared/person-cell";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -36,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { retargetRemitWeek } from "@/lib/actions/remit";
+import { retargetRemitWeek, retargetRemitWeeks } from "@/lib/actions/remit";
 import { displayName } from "@/lib/display";
 import { formatRelative, formatRemitWeek } from "@/lib/format";
 import { monthLabel, shiftMonth } from "@/lib/manila-week";
@@ -72,6 +73,9 @@ export function RemitTracker({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("missing");
   const [historyQuery, setHistoryQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [transferWeek, setTransferWeek] = useState("");
+  const [confirmTransfer, setConfirmTransfer] = useState(false);
 
   const monthSummary = useMemo(() => {
     const byMember = new Map<
@@ -163,11 +167,55 @@ export function RemitTracker({
     });
   }, [history, historyQuery]);
 
+  const transferWeeks = useMemo(() => {
+    return [...new Set([...upcomingWeeks, ...weeks])]
+      .filter((week) => week !== selectedWeek)
+      .sort();
+  }, [upcomingWeeks, weeks, selectedWeek]);
+
+  const allVisibleSelected =
+    visibleHistory.length > 0 &&
+    visibleHistory.every((entry) => selectedIds.includes(entry.id));
+
   const counts = {
     missing: compliance.filter((r) => !r.quota_met).length,
     met: compliance.filter((r) => r.quota_met).length,
     all: compliance.length,
   };
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id];
+      if (next.length > 0 && !transferWeek) {
+        const preferred =
+          transferWeeks.find((week) => week > selectedWeek) ??
+          transferWeeks[0] ??
+          "";
+        if (preferred) setTransferWeek(preferred);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    if (allVisibleSelected) {
+      const visible = new Set(visibleHistory.map((entry) => entry.id));
+      setSelectedIds((current) => current.filter((id) => !visible.has(id)));
+      return;
+    }
+    setSelectedIds((current) => [
+      ...new Set([...current, ...visibleHistory.map((entry) => entry.id)]),
+    ]);
+    if (!transferWeek) {
+      const preferred =
+        transferWeeks.find((week) => week > selectedWeek) ??
+        transferWeeks[0] ??
+        "";
+      if (preferred) setTransferWeek(preferred);
+    }
+  }
 
   function goMonth(delta: number) {
     const next = shiftMonth(year, month, delta);
@@ -175,6 +223,8 @@ export function RemitTracker({
       year: String(next.year),
       month: String(next.month),
     });
+    setSelectedIds([]);
+    setTransferWeek("");
     router.push(`/remit/tracker?${params.toString()}`);
   }
 
@@ -184,6 +234,8 @@ export function RemitTracker({
       month: String(month),
       week,
     });
+    setSelectedIds([]);
+    setTransferWeek("");
     router.push(`/remit/tracker?${params.toString()}`);
   }
 
@@ -194,6 +246,25 @@ export function RemitTracker({
       return;
     }
     toast.success(result.message);
+    router.refresh();
+  }
+
+  async function onBulkTransfer() {
+    if (!transferWeek || selectedIds.length === 0) return;
+    const result = await retargetRemitWeeks({
+      ids: selectedIds,
+      targetWeekStart: transferWeek,
+    });
+    setConfirmTransfer(false);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(result.message);
+    setSelectedIds([]);
+    setTransferWeek("");
     router.refresh();
   }
 
@@ -413,6 +484,46 @@ export function RemitTracker({
           </div>
         </div>
 
+        {canManageAdvance && selectedIds.length > 0 ? (
+          <div className="bg-card flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm">
+              {selectedIds.length} selected — move to another week
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select
+                value={transferWeek}
+                onValueChange={setTransferWeek}
+              >
+                <SelectTrigger className="w-full sm:w-56">
+                  <SelectValue placeholder="Destination week" />
+                </SelectTrigger>
+                <SelectContent>
+                  {transferWeeks.map((week) => (
+                    <SelectItem key={week} value={week}>
+                      {formatRemitWeek(week)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                disabled={!transferWeek}
+                onClick={() => setConfirmTransfer(true)}
+              >
+                Transfer
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedIds([]);
+                  setTransferWeek("");
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="bg-card overflow-hidden rounded-xl border">
           {visibleHistory.length === 0 ? (
             <EmptyState
@@ -425,6 +536,17 @@ export function RemitTracker({
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canManageAdvance ? (
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all visible remits"
+                        checked={allVisibleSelected}
+                        onChange={toggleSelectAllVisible}
+                        className="accent-primary size-4"
+                      />
+                    </TableHead>
+                  ) : null}
                   <TableHead>Member</TableHead>
                   <TableHead>Remit</TableHead>
                   <TableHead className="w-14">Proof</TableHead>
@@ -440,6 +562,17 @@ export function RemitTracker({
               <TableBody>
                 {visibleHistory.map((entry) => (
                   <TableRow key={entry.id}>
+                    {canManageAdvance ? (
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select remit for ${displayName(entry.member ?? {})}`}
+                          checked={selectedIds.includes(entry.id)}
+                          onChange={() => toggleSelected(entry.id)}
+                          className="accent-primary size-4"
+                        />
+                      </TableCell>
+                    ) : null}
                     <TableCell>
                       <PersonCell person={entry.member} compact />
                     </TableCell>
@@ -511,6 +644,24 @@ export function RemitTracker({
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        open={confirmTransfer}
+        onOpenChange={setConfirmTransfer}
+        title="Transfer remits?"
+        description={
+          <p>
+            Move {selectedIds.length} remit{selectedIds.length === 1 ? "" : "s"}{" "}
+            to{" "}
+            <span className="text-foreground font-medium">
+              {transferWeek ? formatRemitWeek(transferWeek) : "the selected week"}
+            </span>
+            . Quotas for both weeks will update after the move.
+          </p>
+        }
+        confirmLabel="Transfer"
+        onConfirm={onBulkTransfer}
+      />
     </div>
   );
 }

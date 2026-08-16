@@ -175,6 +175,43 @@ export async function retargetRemitWeek(input: {
   return { ok: true, message: "Remit moved to the selected week." };
 }
 
+/** Move many remits into another Mon–Sun week in one action. */
+export async function retargetRemitWeeks(input: {
+  ids: string[];
+  targetWeekStart: string;
+}): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      ids: z.array(uuid).min(1, "Pick at least one remit."),
+      targetWeekStart: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid week."),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const ids = [...new Set(parsed.data.ids)];
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("remit_logs")
+    .update(
+      { target_week_start: parsed.data.targetWeekStart },
+      { count: "exact" },
+    )
+    .in("id", ids);
+
+  if (error) return { ok: false, error: toActionError(error) };
+  if (!count) {
+    return { ok: false, error: "Only an admin can move remits to another week." };
+  }
+
+  revalidateRemitLists();
+  return {
+    ok: true,
+    message: `Moved ${count} remit${count === 1 ? "" : "s"} to that week.`,
+  };
+}
+
 export async function reviewRemit(input: {
   id: string;
   status: "pending" | "approved" | "rejected";
