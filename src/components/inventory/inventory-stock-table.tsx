@@ -66,7 +66,7 @@ export function InventoryStockTable(props: TotalProps | WarehouseProps) {
     if (props.mode !== "total") return new Map<string, number>();
     const map = new Map<string, number>();
     for (const row of props.warehouseStock) {
-      map.set(`${row.item_id}:${row.warehouse}`, Number(row.on_hand));
+      map.set(`${row.item_id}:${Number(row.warehouse)}`, Number(row.on_hand));
     }
     return map;
   }, [props]);
@@ -145,25 +145,34 @@ export function InventoryStockTable(props: TotalProps | WarehouseProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(visible as InventoryStock[]).map((row) => (
-                <TableRow key={row.item_id}>
-                  <TableCell>
-                    <ItemName name={row.item_name} active={row.is_active} />
-                  </TableCell>
-                  {props.warehouses.map((warehouse) => (
-                    <QtyCell
-                      key={warehouse.id}
-                      value={
-                        onHandByItemWarehouse.get(
-                          `${row.item_id}:${warehouse.id}`,
-                        ) ?? 0
-                      }
-                      muted
-                    />
-                  ))}
-                  <QtyCell value={row.on_hand} emphasize />
-                </TableRow>
-              ))}
+              {(visible as InventoryStock[]).map((row) => {
+                const warehouseQty = props.warehouses.map(
+                  (warehouse) =>
+                    onHandByItemWarehouse.get(
+                      `${row.item_id}:${Number(warehouse.id)}`,
+                    ) ?? 0,
+                );
+                const totalOnHand = warehouseQty.reduce(
+                  (sum, qty) => sum + qty,
+                  0,
+                );
+
+                return (
+                  <TableRow key={row.item_id}>
+                    <TableCell>
+                      <ItemName name={row.item_name} active={row.is_active} />
+                    </TableCell>
+                    {warehouseQty.map((qty, index) => (
+                      <QtyCell
+                        key={props.warehouses[index]!.id}
+                        value={qty}
+                        muted
+                      />
+                    ))}
+                    <QtyCell value={totalOnHand} emphasize />
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         ) : (
