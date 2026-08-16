@@ -64,7 +64,7 @@ export default async function RemitTrackerPage({
     <>
       <PageHeader
         title="Remit Tracker"
-        description="Monthly and weekly quota progress for the whole crew, with remit history and advance week management."
+        description="Quota weeks run Monday to Sunday (Manila). Each tab shows the full date range so you can see which days are covered."
       />
       <RemitTracker
         year={year}

@@ -46,6 +46,26 @@ export function formatDate(iso: string | null | undefined): string {
   return dateOnly.format(new Date(value));
 }
 
+const weekDay = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+/**
+ * Remit week label: Monday–Sunday range so the crew can see the full window
+ * at a glance (e.g. "Mon 10 Aug – Sun 16 Aug").
+ */
+export function formatRemitWeek(weekStart: string | null | undefined): string {
+  if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return "\u2014";
+
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const monday = new Date(y, m - 1, d, 12);
+  const sunday = new Date(y, m - 1, d + 6, 12);
+
+  return `${weekDay.format(monday)} – ${weekDay.format(sunday)}`;
+}
+
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 365 * 24 * 60 * 60 * 1000],
   ["month", 30 * 24 * 60 * 60 * 1000],

@@ -36,7 +36,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { submitRemit } from "@/lib/actions/remit";
 import { displayName } from "@/lib/display";
-import { formatDate } from "@/lib/format";
+import { formatRemitWeek } from "@/lib/format";
 import { manilaWeekStart, upcomingManilaWeeks } from "@/lib/manila-week";
 import {
   REMIT_PROOF_BUCKET,
@@ -373,7 +373,7 @@ export function RemitForm({
                       <SelectContent>
                         {advanceWeeks.map((week) => (
                           <SelectItem key={week} value={week}>
-                            Week of {formatDate(week)}
+                            {formatRemitWeek(week)}
                           </SelectItem>
                         ))}
                       </SelectContent>

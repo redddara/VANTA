@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/table";
 import { retargetRemitWeek } from "@/lib/actions/remit";
 import { displayName } from "@/lib/display";
-import { formatDate, formatRelative } from "@/lib/format";
+import { formatRelative, formatRemitWeek } from "@/lib/format";
 import { monthLabel, shiftMonth } from "@/lib/manila-week";
 import type {
   RemitLogWithPeople,
@@ -241,7 +241,7 @@ export function RemitTracker({
                 : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
-            Week of {formatDate(week)}
+            {formatRemitWeek(week)}
           </button>
         ))}
       </div>
@@ -253,7 +253,7 @@ export function RemitTracker({
               Weekly quota
             </h2>
             <p className="text-muted-foreground text-sm">
-              Who finished each quota for the week of {formatDate(selectedWeek)}.
+              Who finished each quota for {formatRemitWeek(selectedWeek)}.
             </p>
           </div>
           <div className="relative w-full sm:max-w-xs">
@@ -497,7 +497,7 @@ export function RemitTracker({
                               .sort()
                               .map((week) => (
                                 <SelectItem key={week} value={week}>
-                                  {formatDate(week)}
+                                  {formatRemitWeek(week)}
                                 </SelectItem>
                               ))}
                           </SelectContent>

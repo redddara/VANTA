@@ -129,7 +129,7 @@ export function ComplianceTable({ rows }: { rows: WeeklyCompliance[] }) {
           "No weekly quotas configured."
         ) : (
           <>
-            This week&apos;s quotas (Monday–Sunday, Manila):{" "}
+            This week&apos;s quotas (Mon–Sun, Manila):{" "}
             {quotaTypes.map((q, i) => (
               <span key={q.name}>
                 {i > 0 ? " · " : null}
