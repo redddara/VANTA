@@ -137,10 +137,22 @@ export async function updateMember(input: {
 
   if (parsed.data.reimbursementApprover !== undefined) {
     if (parsed.data.reimbursementApprover) {
-      const { error: approveError } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("reimbursement_approvers")
-        .upsert({ member_id: parsed.data.id }, { onConflict: "member_id" });
-      if (approveError) return { ok: false, error: toActionError(approveError) };
+        .select("member_id")
+        .eq("member_id", parsed.data.id)
+        .maybeSingle();
+      if (existingError) {
+        return { ok: false, error: toActionError(existingError) };
+      }
+      if (!existing) {
+        const { error: approveError } = await supabase
+          .from("reimbursement_approvers")
+          .insert({ member_id: parsed.data.id });
+        if (approveError) {
+          return { ok: false, error: toActionError(approveError) };
+        }
+      }
     } else {
       const { error: revokeError } = await supabase
         .from("reimbursement_approvers")
