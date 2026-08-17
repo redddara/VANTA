@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReimbursementQueue } from "@/components/admin/reimbursement-queue";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/auth";
+import { requireReimbursementReviewer } from "@/lib/auth";
 import { REIMBURSEMENT_SELECT } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { ReimbursementLogWithPeople } from "@/lib/types/app";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Reimbursement queue" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminReimbursementPage() {
-  await requireAdmin();
+  await requireReimbursementReviewer();
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -28,7 +28,7 @@ export default async function AdminReimbursementPage() {
     <>
       <PageHeader
         title="Reimbursement Queue"
-        description="Confirm or reject own-expense reimbursement requests. Org fund withdrawals are recorded on the logs page — they do not need reimbursement."
+        description="Only designated approvers can confirm or reject requests. A Kingpin picks approvers under Admin → Members. Org fund withdrawals stay on the logs page."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/reimbursement">Open logs</Link>

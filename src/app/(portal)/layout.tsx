@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SiteUpdateDialog } from "@/components/announcements/site-update-dialog";
 import { SideNav } from "@/components/nav/side-nav";
 import { SiteHeader } from "@/components/nav/site-header";
-import { getMyWarehouseAccess, requireSession } from "@/lib/auth";
+import { getMyWarehouseAccess, canReviewReimbursement, requireSession } from "@/lib/auth";
 import { ANNOUNCEMENT_AUDIENCES } from "@/lib/constants";
 import { visibleNavItems } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/server";
@@ -45,8 +45,13 @@ export default async function PortalLayout({
   children: React.ReactNode;
 }) {
   const { profile } = await requireSession();
-  const warehouses = await getMyWarehouseAccess();
-  const items = visibleNavItems(profile, warehouses);
+  const [warehouses, canReview] = await Promise.all([
+    getMyWarehouseAccess(),
+    canReviewReimbursement(),
+  ]);
+  const items = visibleNavItems(profile, warehouses, {
+    canReviewReimbursement: canReview,
+  });
 
   return (
     <div className="min-h-dvh lg:pl-60">

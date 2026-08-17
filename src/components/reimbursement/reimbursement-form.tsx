@@ -263,7 +263,7 @@ export function ReimbursementForm({
                 <div className="space-y-0.5">
                   <FormLabel className="text-sm">Request reimbursement</FormLabel>
                   <FormDescription>
-                    Turn on if fund holders should pay this back.
+                    Turn on if designated approvers should pay this back.
                   </FormDescription>
                 </div>
                 <FormControl>

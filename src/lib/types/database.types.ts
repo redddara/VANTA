@@ -385,6 +385,43 @@ export type Database = {
         }
         Relationships: []
       }
+      reimbursement_approvers: {
+        Row: {
+          created_at: string
+          member_id: string
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reimbursement_approvers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reimbursement_approvers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_weekly_compliance"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "reimbursement_approvers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reimbursement_logs: {
         Row: {
           amount: number
@@ -998,6 +1035,7 @@ export type Database = {
         Returns: undefined
       }
       vanta_can_access_inventory: { Args: never; Returns: boolean }
+      vanta_can_review_reimbursement: { Args: never; Returns: boolean }
       vanta_can_view_roster: { Args: never; Returns: boolean }
       vanta_current_rank: { Args: never; Returns: string }
       vanta_current_week_start: { Args: never; Returns: string }

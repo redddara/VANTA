@@ -131,7 +131,7 @@ export function ReimbursementQueue({
           <EmptyState
             icon={Banknote}
             title={filter === "pending" ? "No pending requests" : "Nothing here"}
-            description="Own-expense reimbursement requests show up for fund holders to confirm."
+            description="Own-expense reimbursement requests show up for designated approvers to confirm."
             className="py-10"
           />
         </div>
@@ -146,11 +146,20 @@ export function ReimbursementQueue({
                 <TableHead>Proof</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Decided by</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((entry) => (
+              {visible.map((entry) => {
+                const decisionLabel =
+                  entry.status === "reimbursed"
+                    ? "Reimbursed by"
+                    : entry.status === "rejected"
+                      ? "Rejected by"
+                      : null;
+
+                return (
                 <TableRow key={entry.id}>
                   <TableCell className="whitespace-nowrap text-sm">
                     {formatDate(entry.entry_date)}
@@ -179,6 +188,18 @@ export function ReimbursementQueue({
                     <ReimbursementStatusBadge
                       status={entry.status as ReimbursementStatus}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {decisionLabel && entry.reviewer ? (
+                      <div className="space-y-0.5">
+                        <p className="text-muted-foreground text-xs">
+                          {decisionLabel}
+                        </p>
+                        <PersonCell person={entry.reviewer} compact />
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -215,7 +236,8 @@ export function ReimbursementQueue({
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>

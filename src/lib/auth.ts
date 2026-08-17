@@ -149,6 +149,23 @@ export const getMyWarehouseAccess = cache(
   },
 );
 
+/** Admin, or any member designated as a reimbursement approver. */
+export async function requireReimbursementReviewer(): Promise<Session> {
+  const session = await requireSession();
+  if (await canReviewReimbursement()) return session;
+  redirect("/dashboard");
+}
+
+export const canReviewReimbursement = cache(async (): Promise<boolean> => {
+  const session = await getSession();
+  if (!session) return false;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("vanta_can_review_reimbursement");
+  if (error) return false;
+  return Boolean(data);
+});
+
 /** Admin, or any member with at least one warehouse assignment. */
 export async function requireInventoryAccess(): Promise<
   Session & { warehouses: InventoryWarehouse[] }

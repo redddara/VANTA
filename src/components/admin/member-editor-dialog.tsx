@@ -56,6 +56,8 @@ function EditorBody({
   canGrantHacking,
   catalog,
   assignedIds,
+  isReimbursementApprover,
+  canGrantReimbursementApprover,
   onDone,
 }: {
   member: MemberSummary;
@@ -64,6 +66,8 @@ function EditorBody({
   canGrantHacking: boolean;
   catalog: InventoryWarehouse[];
   assignedIds: number[];
+  isReimbursementApprover: boolean;
+  canGrantReimbursementApprover: boolean;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -78,6 +82,9 @@ function EditorBody({
   const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>(() =>
     [...assignedIds].sort((a, b) => a - b),
   );
+  const [canApproveReimbursement, setCanApproveReimbursement] = useState(
+    isReimbursementApprover,
+  );
 
   const name = displayName(member);
   const nameDirty =
@@ -86,12 +93,16 @@ function EditorBody({
     canGrantHacking &&
     hackingAccess !== Boolean(member.hacking_practice_access);
   const warehousesDirty = !sameIds(selectedWarehouses, assignedIds);
+  const approverDirty =
+    canGrantReimbursementApprover &&
+    canApproveReimbursement !== isReimbursementApprover;
   const dirty =
     rank !== member.crew_rank ||
     isActive !== member.is_active ||
     nameDirty ||
     hackingDirty ||
-    warehousesDirty;
+    warehousesDirty ||
+    approverDirty;
 
   const assignable = catalog.filter(
     (w) => w.is_active || selectedWarehouses.includes(w.id),
@@ -112,6 +123,9 @@ function EditorBody({
         rank,
         isActive,
         warehouses: selectedWarehouses,
+        ...(canGrantReimbursementApprover
+          ? { reimbursementApprover: canApproveReimbursement }
+          : {}),
         ...(canRename ? { ingameName: ingameName.trim() } : {}),
         ...(canGrantHacking ? { hackingPracticeAccess: hackingAccess } : {}),
       });
@@ -259,6 +273,25 @@ function EditorBody({
           )}
         </div>
 
+        {canGrantReimbursementApprover ? (
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="min-w-0">
+              <Label htmlFor="member-reimburse" className="mb-1">
+                Reimbursement approver
+              </Label>
+              <p className="text-muted-foreground text-xs">
+                Can confirm or reject own-expense reimbursement requests and see
+                the Reimbursement Queue. Only a Kingpin can grant this.
+              </p>
+            </div>
+            <Switch
+              id="member-reimburse"
+              checked={canApproveReimbursement}
+              onCheckedChange={setCanApproveReimbursement}
+            />
+          </div>
+        ) : null}
+
         {isSelf && !isAdmin(rank) && (
           <p className="text-warning border-warning/30 bg-warning/10 rounded-md border p-3 text-xs">
             This is your own account. Dropping below Underboss will lock you out
@@ -287,8 +320,10 @@ export function MemberEditorDialog({
   isSelf,
   canRename,
   canGrantHacking,
+  canGrantReimbursementApprover,
   warehouseCatalog,
   warehousesByMember,
+  reimbursementApproverIds,
 }: {
   member: MemberSummary | null;
   open: boolean;
@@ -296,8 +331,10 @@ export function MemberEditorDialog({
   isSelf: boolean;
   canRename: boolean;
   canGrantHacking: boolean;
+  canGrantReimbursementApprover: boolean;
   warehouseCatalog: InventoryWarehouse[];
   warehousesByMember: Record<string, number[]>;
+  reimbursementApproverIds: ReadonlySet<string>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -310,8 +347,10 @@ export function MemberEditorDialog({
             isSelf={isSelf}
             canRename={canRename}
             canGrantHacking={canGrantHacking}
+            canGrantReimbursementApprover={canGrantReimbursementApprover}
             catalog={warehouseCatalog}
             assignedIds={warehousesByMember[member.id] ?? []}
+            isReimbursementApprover={reimbursementApproverIds.has(member.id)}
             onDone={() => onOpenChange(false)}
           />
         )}

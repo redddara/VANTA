@@ -70,6 +70,7 @@ export function ReimbursementList({
             <TableHead>Proof</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Decided by</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -79,6 +80,13 @@ export function ReimbursementList({
               entry.logged_by === currentUserId &&
               entry.entry_type === "own_expense" &&
               (entry.status === "none" || entry.status === "pending");
+
+            const decisionLabel =
+              entry.status === "reimbursed"
+                ? "Reimbursed by"
+                : entry.status === "rejected"
+                  ? "Rejected by"
+                  : null;
 
             return (
               <TableRow key={entry.id}>
@@ -114,6 +122,18 @@ export function ReimbursementList({
                   <ReimbursementStatusBadge
                     status={entry.status as ReimbursementStatus}
                   />
+                </TableCell>
+                <TableCell>
+                  {decisionLabel && entry.reviewer ? (
+                    <div className="space-y-0.5">
+                      <p className="text-muted-foreground text-xs">
+                        {decisionLabel}
+                      </p>
+                      <PersonCell person={entry.reviewer} compact />
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {canDelete ? (

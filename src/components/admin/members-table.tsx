@@ -37,15 +37,19 @@ export function MembersTable({
   currentUserId,
   canRename,
   canGrantHacking,
+  canGrantReimbursementApprover,
   warehouseCatalog,
   warehousesByMember,
+  reimbursementApproverIds,
 }: {
   members: MemberSummary[];
   currentUserId: string;
   canRename: boolean;
   canGrantHacking: boolean;
+  canGrantReimbursementApprover: boolean;
   warehouseCatalog: InventoryWarehouse[];
   warehousesByMember: Record<string, number[]>;
+  reimbursementApproverIds: ReadonlySet<string>;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("active");
@@ -211,8 +215,10 @@ export function MembersTable({
         isSelf={editing?.id === currentUserId}
         canRename={canRename}
         canGrantHacking={canGrantHacking}
+        canGrantReimbursementApprover={canGrantReimbursementApprover}
         warehouseCatalog={warehouseCatalog}
         warehousesByMember={warehousesByMember}
+        reimbursementApproverIds={reimbursementApproverIds}
       />
     </>
   );

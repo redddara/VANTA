@@ -24,6 +24,7 @@ const UpdateMemberSchema = z.object({
   ingameName: IngameNameSchema.optional(),
   hackingPracticeAccess: z.boolean().optional(),
   warehouses: z.array(z.number().int().positive()).optional(),
+  reimbursementApprover: z.boolean().optional(),
 });
 
 const UpdateOwnProfileSchema = z.object({
@@ -39,6 +40,8 @@ function revalidateMembers() {
   revalidatePath("/remit/tracker");
   revalidatePath("/hacking");
   revalidatePath("/inventory");
+  revalidatePath("/admin/reimbursement");
+  revalidatePath("/reimbursement");
 }
 
 /**
@@ -56,6 +59,7 @@ export async function updateMember(input: {
   ingameName?: string;
   hackingPracticeAccess?: boolean;
   warehouses?: number[];
+  reimbursementApprover?: boolean;
 }): Promise<ActionResult> {
   const parsed = UpdateMemberSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -71,6 +75,13 @@ export async function updateMember(input: {
     return {
       ok: false,
       error: "Only a Kingpin can grant Hacking Practice access.",
+    };
+  }
+
+  if (parsed.data.reimbursementApprover !== undefined && !kingpin) {
+    return {
+      ok: false,
+      error: "Only a Kingpin can assign reimbursement approvers.",
     };
   }
 
@@ -121,6 +132,21 @@ export async function updateMember(input: {
         );
 
       if (insertError) return { ok: false, error: toActionError(insertError) };
+    }
+  }
+
+  if (parsed.data.reimbursementApprover !== undefined) {
+    if (parsed.data.reimbursementApprover) {
+      const { error: approveError } = await supabase
+        .from("reimbursement_approvers")
+        .upsert({ member_id: parsed.data.id }, { onConflict: "member_id" });
+      if (approveError) return { ok: false, error: toActionError(approveError) };
+    } else {
+      const { error: revokeError } = await supabase
+        .from("reimbursement_approvers")
+        .delete()
+        .eq("member_id", parsed.data.id);
+      if (revokeError) return { ok: false, error: toActionError(revokeError) };
     }
   }
 

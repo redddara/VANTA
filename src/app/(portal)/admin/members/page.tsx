@@ -21,21 +21,23 @@ export default async function AdminMembersPage() {
   const { profile } = await requireAdmin();
   const supabase = await createClient();
 
-  const [membersResult, accessResult, warehousesResult] = await Promise.all([
-    supabase
-      .from("member_summary")
-      .select(MEMBER_SUMMARY_SELECT)
-      .returns<MemberSummary[]>(),
-    supabase
-      .from("inventory_warehouse_access")
-      .select(INVENTORY_WAREHOUSE_ACCESS_SELECT),
-    supabase
-      .from("inventory_warehouses")
-      .select(INVENTORY_WAREHOUSE_SELECT)
-      .order("sort_order")
-      .order("id")
-      .returns<InventoryWarehouse[]>(),
-  ]);
+  const [membersResult, accessResult, warehousesResult, approversResult] =
+    await Promise.all([
+      supabase
+        .from("member_summary")
+        .select(MEMBER_SUMMARY_SELECT)
+        .returns<MemberSummary[]>(),
+      supabase
+        .from("inventory_warehouse_access")
+        .select(INVENTORY_WAREHOUSE_ACCESS_SELECT),
+      supabase
+        .from("inventory_warehouses")
+        .select(INVENTORY_WAREHOUSE_SELECT)
+        .order("sort_order")
+        .order("id")
+        .returns<InventoryWarehouse[]>(),
+      supabase.from("reimbursement_approvers").select("member_id"),
+    ]);
 
   const warehousesByMember: Record<string, number[]> = {};
   for (const row of accessResult.data ?? []) {
@@ -47,13 +49,17 @@ export default async function AdminMembersPage() {
     warehousesByMember[id].sort((a, b) => a - b);
   }
 
+  const reimbursementApproverIds = new Set(
+    (approversResult.data ?? []).map((row) => row.member_id),
+  );
+
   return (
     <>
       <PageHeader
         title="Members"
         description={
           isKingpin(profile.crew_rank)
-            ? "Set crew ranks, active status, warehouse access, in-game names, and Hacking Practice access. Every change is written to the audit log."
+            ? "Set crew ranks, active status, warehouse access, reimbursement approvers, in-game names, and Hacking Practice access. Every change is written to the audit log."
             : "Set crew ranks, active status, and warehouse access. Every change is written to the audit log."
         }
       />
@@ -62,8 +68,10 @@ export default async function AdminMembersPage() {
         currentUserId={profile.id}
         canRename={isKingpin(profile.crew_rank)}
         canGrantHacking={isKingpin(profile.crew_rank)}
+        canGrantReimbursementApprover={isKingpin(profile.crew_rank)}
         warehouseCatalog={warehousesResult.data ?? []}
         warehousesByMember={warehousesByMember}
+        reimbursementApproverIds={reimbursementApproverIds}
       />
     </>
   );

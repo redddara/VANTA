@@ -21,7 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/inventory", label: "Inventory", minRank: "Prospect", group: "actions" },
   { href: "/reputation/new", label: "Set Reputation", minRank: "Enforcer", group: "actions" },
   { href: "/admin/remit", label: "Remit Queue", minRank: "Underboss", group: "admin" },
-  { href: "/admin/reimbursement", label: "Reimbursement Queue", minRank: "Underboss", group: "admin" },
+  { href: "/admin/reimbursement", label: "Reimbursement Queue", minRank: "Prospect", group: "admin" },
   { href: "/admin/remit-types", label: "Remit Types", minRank: "Underboss", group: "admin" },
   { href: "/admin/announcements", label: "Updates", minRank: "Underboss", group: "admin" },
   { href: "/admin/members", label: "Members", minRank: "Underboss", group: "admin" },
@@ -37,12 +37,16 @@ export const NAV_GROUP_LABELS: Record<NavItem["group"], string> = {
 export function visibleNavItems(
   profile: Pick<Profile, "crew_rank" | "hacking_practice_access">,
   warehouses: readonly InventoryWarehouse[] = [],
+  options: { canReviewReimbursement?: boolean } = {},
 ): NavItem[] {
   const weight = rankWeight(profile.crew_rank);
   return NAV_ITEMS.filter((item) => {
     if (item.href === "/hacking") return canAccessHackingPractice(profile);
     if (item.href === "/inventory") {
       return canAccessInventory(profile, warehouses);
+    }
+    if (item.href === "/admin/reimbursement") {
+      return Boolean(options.canReviewReimbursement);
     }
     return weight >= rankWeight(item.minRank);
   });

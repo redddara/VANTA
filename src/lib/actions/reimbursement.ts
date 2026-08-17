@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { firstIssue, toActionError, type ActionResult } from "@/lib/actions/shared";
-import { requireSession } from "@/lib/auth";
+import { canReviewReimbursement, requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { isAdmin, isStaff } from "@/lib/types/app";
+import { isStaff } from "@/lib/types/app";
 
 const uuid = z.uuid("Pick a value from the list.");
 
@@ -122,9 +122,12 @@ export async function reviewReimbursement(input: {
   const parsed = ReviewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
-  const { profile } = await requireSession();
-  if (!isAdmin(profile.crew_rank)) {
-    return { ok: false, error: "Only an admin can update reimbursement status." };
+  await requireSession();
+  if (!(await canReviewReimbursement())) {
+    return {
+      ok: false,
+      error: "Only a designated reimbursement approver can update status.",
+    };
   }
 
   const supabase = await createClient();
